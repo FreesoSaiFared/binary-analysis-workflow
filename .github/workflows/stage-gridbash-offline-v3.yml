@@ -1,0 +1,75 @@
+name: Package verified GridBash offline capsule
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/stage-gridbash-offline-v3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gridbash-rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Install build-only native dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libasound2-dev pkg-config
+      - name: Fetch exact GridBash source through gh-proxy
+        env:
+          COMMIT: 6cb6982a7414c6283cacf243465134271af81607
+          EXPECTED_ARCHIVE_SHA: 62fdc376975cb882e6c6ffa8dea7d72571bec8b28b22b68dd4ee089f2d401c66
+        run: |
+          set -euo pipefail
+          mkdir -p work out
+          url="https://gh-proxy.com/https://github.com/jasonsuhari/gridbash/archive/${COMMIT}.tar.gz"
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --max-time 1200 -o work/source.tar.gz "$url"
+          test "$(sha256sum work/source.tar.gz | cut -d' ' -f1)" = "$EXPECTED_ARCHIVE_SHA"
+          tar -tzf work/source.tar.gz >/dev/null
+          tar -xzf work/source.tar.gz -C work
+      - name: Vendor, run tests and build release
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace="$GITHUB_WORKSPACE"
+          src=$(find "$workspace/work" -mindepth 1 -maxdepth 1 -type d -name 'gridbash-*' -print -quit)
+          rustc --version | tee "$workspace/out/RUSTC_VERSION.txt"
+          cargo --version | tee "$workspace/out/CARGO_VERSION.txt"
+          cd "$src"
+          mkdir -p .cargo
+          cargo vendor --locked vendor > .cargo/config.toml
+          CARGO_BUILD_JOBS=2 cargo test --locked | tee "$workspace/out/CARGO_TEST.log"
+          CARGO_BUILD_JOBS=2 cargo build --locked --release | tee "$workspace/out/CARGO_RELEASE.log"
+          cp target/release/gridbash "$workspace/out/gridbash-linux-amd64"
+          if [ -f target/release/gridbash-voice ]; then cp target/release/gridbash-voice "$workspace/out/gridbash-voice-linux-amd64"; fi
+          tar -czf "$workspace/out/gridbash-cargo-vendor.tar.gz" vendor .cargo Cargo.lock Cargo.toml
+          tar -czf "$workspace/out/gridbash-exact-source.tar.gz" --exclude='target' --exclude='vendor' --exclude='.cargo' .
+          toolchain=$(rustup show active-toolchain | awk '{print $1}')
+          toolpath=$(rustup which --toolchain "$toolchain" rustc)
+          toolroot=$(dirname "$(dirname "$toolpath")")
+          printf '%s\n' "$toolchain" > "$workspace/out/RUST_TOOLCHAIN.txt"
+          tar -C "$(dirname "$toolroot")" -czf "$workspace/out/rust-toolchain-linux-amd64.tar.gz" "$(basename "$toolroot")"
+          mkdir -p "$workspace/debs"
+          cd "$workspace/debs"
+          apt-get download libasound2-dev pkg-config pkgconf pkgconf-bin >/dev/null
+          cd "$workspace"
+          tar -czf out/gridbash-native-debs.tar.gz -C debs .
+          {
+            echo 'repository=jasonsuhari/gridbash'
+            echo 'commit=6cb6982a7414c6283cacf243465134271af81607'
+            echo 'archive_sha=62fdc376975cb882e6c6ffa8dea7d72571bec8b28b22b68dd4ee089f2d401c66'
+            echo "source_dir=$(basename "$src")"
+          } > out/IDENTITY.txt
+          sha256sum out/* | tee out/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vm-gridbash-rust-offline-v3
+          path: out/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
