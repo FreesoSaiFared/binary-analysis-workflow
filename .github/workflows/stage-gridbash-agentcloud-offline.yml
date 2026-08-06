@@ -1,0 +1,132 @@
+name: Stage GridBash and Agent Cloud offline capsules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/stage-gridbash-agentcloud-offline.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent-cloud-debug-proxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Re-fetch exact source through gh-proxy and record identity
+        env:
+          COMMIT: b8c7cae6388e03e68910d4259377ce74f346831f
+          EXPECTED_ARCHIVE_SHA: a77c263ddb8b77dd66da40d19bba01ea0919154e32bba06f8044f301410e4421
+          EXPECTED_POM_SHA: 6f37d4425e293394b89f8161190e34569be6eba55707fb097d4c9220512b4ab3
+        run: |
+          set -euo pipefail
+          mkdir -p out work
+          url="https://gh-proxy.com/https://github.com/yangpeng366/agent-cloud-harness/archive/${COMMIT}.tar.gz"
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --max-time 600 -o work/source.tar.gz "$url"
+          archive_sha=$(sha256sum work/source.tar.gz | cut -d' ' -f1)
+          tar -tzf work/source.tar.gz >/dev/null
+          tar -xzf work/source.tar.gz -C work
+          src=$(find work -mindepth 1 -maxdepth 1 -type d -name 'agent-cloud-harness-*' -print -quit)
+          pom_sha=$(sha256sum "$src/pom.xml" | cut -d' ' -f1)
+          printf 'archive_sha=%s\nexpected_archive_sha=%s\npom_sha=%s\nexpected_pom_sha=%s\nsource_dir=%s\n' "$archive_sha" "$EXPECTED_ARCHIVE_SHA" "$pom_sha" "$EXPECTED_POM_SHA" "$src" | tee out/IDENTITY.txt
+          cp "$src/pom.xml" out/pom.xml
+          grep -RniE 'agentclientprotocol|apache\.arrow|arrow-flight|flight-core' "$src" > out/ACP_ARROW_SEARCH.txt || true
+          if [ "$archive_sha" != "$EXPECTED_ARCHIVE_SHA" ] || [ "$pom_sha" != "$EXPECTED_POM_SHA" ]; then
+            echo 'identity mismatch' | tee out/RESULT.txt
+            exit 2
+          fi
+          echo 'identity match' | tee out/RESULT.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-cloud-gh-proxy-identity
+          path: out/
+          retention-days: 1
+          compression-level: 0
+
+  agent-cloud-maven:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: yangpeng366/agent-cloud-harness
+          ref: b8c7cae6388e03e68910d4259377ce74f346831f
+          path: src
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Verify source and create offline Maven capsule
+        run: |
+          set -euo pipefail
+          test "$(sha256sum src/pom.xml | cut -d' ' -f1)" = '6f37d4425e293394b89f8161190e34569be6eba55707fb097d4c9220512b4ab3'
+          mkdir -p out work/m2repo
+          repo="$PWD/work/m2repo"
+          cd src
+          mvn -B -Dmaven.repo.local="$repo" dependency:go-offline
+          mvn -B -Dmaven.repo.local="$repo" test package
+          cp target/*-all.jar "$OLDPWD/out/" 2>/dev/null || cp target/*.jar "$OLDPWD/out/"
+          cd "$OLDPWD"
+          maven_home=$(mvn -version | awk -F': ' '/Maven home/{print $2; exit}')
+          mvn -version > out/MAVEN_VERSION.txt
+          java -version > out/JAVA_VERSION.txt 2>&1
+          tar -C "$(dirname "$maven_home")" -czf out/maven-home.tar.gz "$(basename "$maven_home")"
+          tar -C work -czf out/agent-cloud-m2repo.tar.gz m2repo
+          sha256sum out/* | tee out/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vm-agent-cloud-maven-offline-v2
+          path: out/
+          retention-days: 1
+          compression-level: 0
+
+  gridbash-rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Fetch exact GridBash source through gh-proxy
+        env:
+          COMMIT: 6cb6982a7414c6283cacf243465134271af81607
+          EXPECTED_ARCHIVE_SHA: 62fdc376975cb882e6c6ffa8dea7d72571bec8b28b22b68dd4ee089f2d401c66
+        run: |
+          set -euo pipefail
+          mkdir -p work out
+          url="https://gh-proxy.com/https://github.com/jasonsuhari/gridbash/archive/${COMMIT}.tar.gz"
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --max-time 1200 -o work/source.tar.gz "$url"
+          test "$(sha256sum work/source.tar.gz | cut -d' ' -f1)" = "$EXPECTED_ARCHIVE_SHA"
+          tar -tzf work/source.tar.gz >/dev/null
+          tar -xzf work/source.tar.gz -C work
+      - name: Vendor exact Rust dependency graph and build
+        run: |
+          set -euo pipefail
+          src=$(find work -mindepth 1 -maxdepth 1 -type d -name 'gridbash-*' -print -quit)
+          rustc --version | tee out/RUSTC_VERSION.txt
+          cargo --version | tee out/CARGO_VERSION.txt
+          cd "$src"
+          mkdir -p .cargo
+          cargo vendor --locked vendor > .cargo/config.toml
+          cargo test --locked --no-run
+          cargo build --locked --release
+          cp target/release/gridbash "$OLDPWD/../out/gridbash-linux-amd64"
+          if [ -f target/release/gridbash-voice ]; then cp target/release/gridbash-voice "$OLDPWD/../out/gridbash-voice-linux-amd64"; fi
+          tar -czf "$OLDPWD/../out/gridbash-cargo-vendor.tar.gz" vendor .cargo Cargo.lock Cargo.toml
+          cd "$OLDPWD/.."
+          toolchain=$(rustup show active-toolchain | awk '{print $1}')
+          toolpath=$(rustup which --toolchain "$toolchain" rustc)
+          toolroot=$(dirname "$(dirname "$toolpath")")
+          printf '%s\n' "$toolchain" > out/RUST_TOOLCHAIN.txt
+          tar -C "$(dirname "$toolroot")" -czf out/rust-toolchain-linux-amd64.tar.gz "$(basename "$toolroot")"
+          apt-get update -qq
+          cd out
+          apt-get download libasound2-dev pkg-config pkgconf pkgconf-bin >/dev/null
+          cd ..
+          sha256sum out/* | tee out/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vm-gridbash-rust-offline
+          path: out/
+          retention-days: 1
+          compression-level: 0
