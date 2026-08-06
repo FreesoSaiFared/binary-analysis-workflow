@@ -1,0 +1,62 @@
+name: Fingerprint and stage exact Agent Cloud checkout
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/stage-agent-cloud-exact-checkout.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: yangpeng366/agent-cloud-harness
+          ref: b8c7cae6388e03e68910d4259377ce74f346831f
+          path: src
+          fetch-depth: 1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Fingerprint checkout and build dependency capsule
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p out work/m2repo
+          {
+            echo "requested=b8c7cae6388e03e68910d4259377ce74f346831f"
+            echo "actual=$(git -C src rev-parse HEAD)"
+            echo "tree=$(git -C src rev-parse HEAD^{tree})"
+            echo "pom_sha=$(sha256sum src/pom.xml | cut -d' ' -f1)"
+            echo "engine_present=$(test -f src/src/main/java/com/agentcloud/engine/AgentCloudHarnessEngine.java && echo yes || echo no)"
+            git -C src status --short
+          } | tee out/IDENTITY.txt
+          git -C src ls-tree -r --name-only HEAD | sort > out/GIT_TREE_FILES.txt
+          find src -type f -not -path 'src/.git/*' -printf '%P\n' | sort > out/WORKTREE_FILES_BEFORE.txt
+          tar --exclude='.git' -C src -czf out/agent-cloud-exact-checkout.tar.gz .
+
+          repo="$PWD/work/m2repo"
+          (cd src && mvn -B -Dmaven.repo.local="$repo" dependency:go-offline) >out/MAVEN_OFFLINE.log 2>&1
+          dep_status=$?
+          (cd src && mvn -B -o -Dmaven.repo.local="$repo" test package) >out/MAVEN_BUILD.log 2>&1
+          build_status=$?
+          printf 'dependency_status=%s\nbuild_status=%s\n' "$dep_status" "$build_status" | tee out/BUILD_STATUS.txt
+
+          tar -C work -czf out/agent-cloud-m2repo.tar.gz m2repo
+          maven_home=$(mvn -version | awk -F': ' '/Maven home/{print $2; exit}')
+          tar -C "$(dirname "$maven_home")" -czf out/maven-home.tar.gz "$(basename "$maven_home")"
+          sha256sum out/* | tee out/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vm-agent-cloud-exact-checkout
+          path: out/
+          retention-days: 1
+          compression-level: 0
