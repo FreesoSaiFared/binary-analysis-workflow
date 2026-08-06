@@ -1,0 +1,91 @@
+name: Preserve Agent Cloud offline evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/stage-agent-cloud-offline-evidence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: yangpeng366/agent-cloud-harness
+          ref: b8c7cae6388e03e68910d4259377ce74f346831f
+          path: src
+          fetch-depth: 1
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Populate exact cache and preserve failing contract evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace="$GITHUB_WORKSPACE"
+          mkdir -p "$workspace/out" "$workspace/work/m2repo"
+          actual=$(git -C src rev-parse HEAD)
+          tree=$(git -C src rev-parse HEAD^{tree})
+          test "$actual" = b8c7cae6388e03e68910d4259377ce74f346831f
+          test "$tree" = a39848fe5ba3e75ca2f31cb100b05eb68fea62ad
+          test "$(sha256sum src/pom.xml | cut -d' ' -f1)" = 6f37d4425e293394b89f8161190e34569be6eba55707fb097d4c9220512b4ab3
+          repo="$workspace/work/m2repo"
+
+          set +e
+          (cd src && mvn -B -Dmaven.repo.local="$repo" -Dmaven.test.failure.ignore=true test package) \
+            >"$workspace/out/MAVEN_ONLINE_BUILD.log" 2>&1
+          online_status=$?
+          set -e
+          cp -a src/target/surefire-reports "$workspace/out/surefire-online" || true
+          find src/target -maxdepth 1 -type f -name '*.jar' -exec cp {} "$workspace/out/" \; || true
+
+          rm -rf src/target
+          set +e
+          (cd src && mvn -B -o -Dmaven.repo.local="$repo" -Dmaven.test.failure.ignore=true test package) \
+            >"$workspace/out/MAVEN_OFFLINE_REPLAY.log" 2>&1
+          offline_status=$?
+          set -e
+          cp -a src/target/surefire-reports "$workspace/out/surefire-offline" || true
+
+          online_summary=$(grep -hE 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+' "$workspace/out/MAVEN_ONLINE_BUILD.log" | tail -1 || true)
+          offline_summary=$(grep -hE 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+' "$workspace/out/MAVEN_OFFLINE_REPLAY.log" | tail -1 || true)
+          {
+            echo "repository=yangpeng366/agent-cloud-harness"
+            echo "commit=$actual"
+            echo "tree=$tree"
+            echo "pom_sha=6f37d4425e293394b89f8161190e34569be6eba55707fb097d4c9220512b4ab3"
+            echo "online_status=$online_status"
+            echo "offline_status=$offline_status"
+            echo "online_summary=$online_summary"
+            echo "offline_summary=$offline_summary"
+            echo "main_java=$(find src/src/main/java -name '*.java' | wc -l)"
+            echo "test_java=$(find src/src/test/java -name '*.java' | wc -l)"
+          } | tee "$workspace/out/IDENTITY_AND_RESULTS.txt"
+
+          tar --exclude='.git' --exclude='target' -C src -czf "$workspace/out/agent-cloud-exact-source.tar.gz" .
+          tar -C "$workspace/work" -czf "$workspace/out/agent-cloud-m2repo.tar.gz" m2repo
+          maven_home=$(mvn -version | awk -F': ' '/Maven home/{print $2; exit}')
+          tar -C "$(dirname "$maven_home")" -czf "$workspace/out/maven-home.tar.gz" "$(basename "$maven_home")"
+          mvn -version > "$workspace/out/MAVEN_VERSION.txt"
+          java -version > "$workspace/out/JAVA_VERSION.txt" 2>&1
+          sha256sum "$workspace/out"/* | sed "s#${workspace}/out/##" | tee "$workspace/out/SHA256SUMS"
+
+          test -n "$online_summary"
+          test -n "$offline_summary"
+          grep -q 'Failures: 2' "$workspace/out/MAVEN_ONLINE_BUILD.log"
+          grep -q 'Failures: 2' "$workspace/out/MAVEN_OFFLINE_REPLAY.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vm-agent-cloud-offline-evidence
+          path: out/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
