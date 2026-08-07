@@ -1,0 +1,50 @@
+name: Stage pinned Codex 0.147.0 Linux runtime
+on:
+  push:
+    paths:
+      - .github/workflows/stage-codex-0147-linux.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download and verify official Codex release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='rust-v0.147.0'
+          asset_name='codex-x86_64-unknown-linux-gnu.tar.gz'
+          mkdir -p out extracted
+          release_json=$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/openai/codex/releases/tags/${tag}")
+          url=$(jq -r --arg n "$asset_name" '.assets[] | select(.name==$n) | .browser_download_url' <<<"$release_json")
+          digest=$(jq -r --arg n "$asset_name" '.assets[] | select(.name==$n) | .digest' <<<"$release_json")
+          size=$(jq -r --arg n "$asset_name" '.assets[] | select(.name==$n) | .size' <<<"$release_json")
+          test -n "$url" && test "$url" != null
+          test -n "$digest" && test "$digest" != null
+          curl -fL --retry 4 --retry-delay 2 -o "out/$asset_name" "$url"
+          got=$(sha256sum "out/$asset_name" | awk '{print $1}')
+          test "sha256:$got" = "$digest"
+          test "$(stat -c %s "out/$asset_name")" = "$size"
+          tar -tzf "out/$asset_name" > out/TAR_LIST.txt
+          tar -xzf "out/$asset_name" -C extracted
+          bin=$(find extracted -type f -name codex -perm -111 | head -1)
+          test -n "$bin"
+          "$bin" --version > out/CODEX_VERSION.txt
+          cp "$bin" out/codex
+          chmod +x out/codex
+          api_tag=$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/openai/codex/git/ref/tags/${tag}")
+          object_type=$(jq -r '.object.type' <<<"$api_tag")
+          object_sha=$(jq -r '.object.sha' <<<"$api_tag")
+          printf 'repository=openai/codex\nrelease_tag=%s\nrelease_id=%s\npublished_at=%s\nasset=%s\nasset_size=%s\nasset_digest=%s\ntag_object_type=%s\ntag_object_sha=%s\n' \
+            "$tag" "$(jq -r '.id' <<<"$release_json")" "$(jq -r '.published_at' <<<"$release_json")" "$asset_name" "$size" "$digest" "$object_type" "$object_sha" > out/IDENTITY.txt
+          sha256sum out/* > out/SHA256SUMS
+          cat out/IDENTITY.txt
+          cat out/CODEX_VERSION.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-0.147.0-x86_64-linux-gnu
+          path: out/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
