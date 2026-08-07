@@ -11,17 +11,21 @@ jobs:
     steps:
       - name: Discover, download and verify official Codex release asset
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag='rust-v0.147.0'
           mkdir -p out extracted
-          release_json=$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/openai/codex/releases/tags/${tag}")
+          api() { curl -fsSL -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer ${GH_TOKEN}" "$1"; }
+          release_json=$(api "https://api.github.com/repos/openai/codex/releases/tags/${tag}")
           jq -r '.assets[] | [.name, .size, .digest, .browser_download_url] | @tsv' <<<"$release_json" > out/RELEASE_ASSETS.tsv
+          jq -r '.assets[].name' <<<"$release_json" | grep -i codex > out/CODEX_ASSET_NAMES.txt || true
 
-          mapfile -t candidates < <(jq -r '.assets[].name' <<<"$release_json" | grep -E '^codex.*x86_64.*linux.*\.tar\.gz$' | grep -v -E '\.sigstore$' || true)
+          mapfile -t candidates < <(jq -r '.assets[].name' <<<"$release_json" | grep -Ei '^codex.*x86_64.*linux.*\.(tar\.gz|tgz)$' | grep -v -E '\.sigstore$' || true)
           if ((${#candidates[@]} == 0)); then
             echo 'No x86_64 Linux Codex tarball found. Available Codex assets:' >&2
-            jq -r '.assets[].name' <<<"$release_json" | grep -i codex >&2 || true
+            cat out/CODEX_ASSET_NAMES.txt >&2
             exit 20
           fi
           asset_name=''
@@ -48,12 +52,12 @@ jobs:
           cp "$bin" out/codex
           chmod +x out/codex
 
-          api_tag=$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/openai/codex/git/ref/tags/${tag}")
+          api_tag=$(api "https://api.github.com/repos/openai/codex/git/ref/tags/${tag}")
           object_type=$(jq -r '.object.type' <<<"$api_tag")
           object_sha=$(jq -r '.object.sha' <<<"$api_tag")
           printf 'repository=openai/codex\nrelease_tag=%s\nrelease_id=%s\npublished_at=%s\nasset=%s\nasset_size=%s\nasset_digest=%s\ntag_object_type=%s\ntag_object_sha=%s\n' \
             "$tag" "$(jq -r '.id' <<<"$release_json")" "$(jq -r '.published_at' <<<"$release_json")" "$asset_name" "$size" "$digest" "$object_type" "$object_sha" > out/IDENTITY.txt
-          find out -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > out/SHA256SUMS
+          find out -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > out/SHA256SUMS
           cat out/IDENTITY.txt
           cat out/CODEX_VERSION.txt
       - uses: actions/upload-artifact@v4
