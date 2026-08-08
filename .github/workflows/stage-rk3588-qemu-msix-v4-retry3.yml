@@ -1,0 +1,47 @@
+name: Retry RK3588 ARM64 QEMU MSI-X proof v4 installed headers
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4-retry3.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute v4 with native Debian header installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/stage-rk3588-qemu-msix-v4.yml').read_text().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='run: |')+1
+          end=next(i for i in range(start,len(src)) if src[i].startswith('      - uses:'))
+          lines=[l[10:] if l.startswith('          ') else l for l in src[start:end]]
+          a=next(i for i,l in enumerate(lines) if 'cd /tmp;kp=$(apt-cache depends linux-image-arm64:arm64' in l)
+          b=next(i for i,l in enumerate(lines[a:],a) if 'aarch64-linux-gnu-gcc -O2 -static -s /work/work/init.c' in l)
+          replacement=[
+              '  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends linux-image-arm64:arm64 linux-headers-arm64:arm64',
+              '  hdr=$(find /usr/src -maxdepth 1 -type d -name "linux-headers-*-arm64" | sort | tail -1);test -n "$hdr";ver=${hdr##*/linux-headers-};make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/work modules',
+          ]
+          lines[a:b]=replacement
+          for i,l in enumerate(lines):
+              if 'kernel=$(find /tmp/kernel/boot -maxdepth 1 -name "vmlinuz-*"|head -1);cp "$kernel"' in l:
+                  lines[i]=l.replace('kernel=$(find /tmp/kernel/boot -maxdepth 1 -name "vmlinuz-*"|head -1);cp "$kernel"','kernel="/boot/vmlinuz-$ver";test -f "$kernel";cp "$kernel"')
+                  break
+          else:
+              raise SystemExit('kernel copy line not found')
+          Path('/tmp/stage.sh').write_text('\n'.join(lines)+'\n')
+          PY
+          bash /tmp/stage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-qemu-arm64-msix-v4-retry3
+          path: |
+            rk3588-qemu-arm64-msix-v4.tar.gz
+            rk3588-qemu-arm64-msix-v4.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
