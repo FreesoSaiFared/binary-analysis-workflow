@@ -1,0 +1,73 @@
+name: Diagnose RK3588 ARM64 QEMU MSI-X enable and eventfd consumption
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4-retry10.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instrument exact QEMU eventfd to Linux MSI-X boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/stage-rk3588-qemu-msix-v4.yml').read_text().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='run: |')+1
+          end=next(i for i in range(start,len(src)) if src[i].startswith('      - uses:'))
+          lines=[l[10:] if l.startswith('          ') else l for l in src[start:end]]
+          a=next(i for i,l in enumerate(lines) if 'cd /tmp;kp=$(apt-cache depends linux-image-arm64:arm64' in l)
+          b=next(i for i,l in enumerate(lines[a:],a) if 'aarch64-linux-gnu-gcc -O2 -static -s /work/work/init.c' in l)
+          lines[a:b]=[
+              '  cd /tmp;kp=$(apt-cache depends linux-image-arm64:arm64|awk "/Depends: linux-image-[0-9]/{print \\$2;exit}");test -n "$kp";kb=${kp%%:*};ver=${kb#linux-image-};apt-get download "$kp";dpkg-deb -x "${kb}_"*"_arm64.deb" /tmp/kernel',
+              '  hp="linux-headers-${ver}:arm64";apt-get download "$hp";hb=${hp%%:*}',
+              '  common="linux-headers-${ver%-arm64}-common";kbuild="linux-kbuild-${ver%-arm64}";DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$common" "$kbuild"',
+              '  dpkg-deb -x "${hb}_"*"_arm64.deb" /',
+              '  hdr="/usr/src/linux-headers-${ver}";test -d "$hdr";make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/work modules',
+          ]
+          body='\n'.join(lines)+'\n'
+          body=body.replace('static struct pci_driver driver={.name="rkmesh_ivshmem",.id_table=ids,.probe=rkmesh_probe,.remove=rkmesh_remove};module_pci_driver(driver);', 'static struct pci_driver rkmesh_pci_driver={.name="rkmesh_ivshmem",.id_table=ids,.probe=rkmesh_probe,.remove=rkmesh_remove};module_pci_driver(rkmesh_pci_driver);')
+          body=body.replace('sleep(5);sync();printf("RKMESH_IRQ_GUEST_EXIT', 'sleep(14);sync();printf("RKMESH_IRQ_GUEST_EXIT')
+          body=body.replace('-device ivshmem-doorbell,vectors=1,chardev=iv$n','-device ivshmem-doorbell,vectors=1,ioeventfd=off,chardev=iv$n')
+
+          # Match upstream server ordering exactly: new peer -> existing peers,
+          # existing peers -> new peer, then self.
+          old_order='''                  for oid,oc,oe in peers:send(c,oid,oe)\n                  for oid,oc,oe in peers:send(oc,pid,ev)'''
+          new_order='''                  for oid,oc,oe in peers:send(oc,pid,ev)\n                  for oid,oc,oe in peers:send(c,oid,oe)'''
+          if old_order not in body: raise SystemExit('server order block not found')
+          body=body.replace(old_order,new_order)
+
+          # Log the actual PCI MSI-X control after allocation/request_irq.
+          old_ready='pr_info("RKMESH_IRQ_READY id=%u irq=%d bar2=%pa\\n",d->id,irq,&pdev->resource[2].start);'
+          new_ready='''{ int cap=pci_find_capability(pdev,PCI_CAP_ID_MSIX);u16 ctl=0;if(cap)pci_read_config_word(pdev,cap+PCI_MSIX_FLAGS,&ctl);pr_info("RKMESH_IRQ_READY id=%u irq=%d msix_enabled=%u cap=%d ctl=0x%04x bar2=%pa\\n",d->id,irq,pdev->msix_enabled?1:0,cap,ctl,&pdev->resource[2].start); }'''
+          if old_ready not in body: raise SystemExit('ready log not found')
+          body=body.replace(old_ready,new_ready)
+
+          # Directly signal peer1's self-eventfd after modules should be loaded;
+          # two seconds later inspect whether QEMU consumed the eventfd counter.
+          needle="print(f'IVSHMEM_ALL_PEERS count={len(peers)}',flush=True);sel=selectors.DefaultSelector()"
+          repl="""print(f'IVSHMEM_ALL_PEERS count={len(peers)}',flush=True);import time;time.sleep(7);os.write(peers[1][2],struct.pack('<Q',1));print('IVSHMEM_HOST_INJECT peer=1 vector=0',flush=True);time.sleep(2);\n              try:\n                  raw=os.read(peers[1][2],8);print(f'IVSHMEM_EVENTFD_UNCONSUMED peer=1 value={struct.unpack(\"<Q\",raw)[0]}',flush=True)\n              except BlockingIOError:\n                  print('IVSHMEM_EVENTFD_CONSUMED peer=1',flush=True)\n              sel=selectors.DefaultSelector()"""
+          if needle not in body: raise SystemExit('server injection point not found')
+          body=body.replace(needle,repl)
+
+          oldassert='rc=0;for x in "${p[@]}";do wait "$x"||rc=1;done;grep -q \'IVSHMEM_ALL_PEERS count=4\' "$R/server.log";'
+          newassert='rc=0;for x in "${p[@]}";do wait "$x"||rc=1;done;echo ===SERVER===;cat "$R/server.log";for f in "$R"/node*.log;do echo "===${f##*/}===";grep "RKMESH_" "$f" || true;done;grep -q \'IVSHMEM_ALL_PEERS count=4\' "$R/server.log";'
+          if oldassert not in body: raise SystemExit('assertion prefix not found')
+          body=body.replace(oldassert,newassert)
+          Path('/tmp/stage.sh').write_text(body)
+          PY
+          bash /tmp/stage.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rk3588-qemu-arm64-msix-v4-retry10-diagnostic
+          path: |
+            out/run/server.log
+            out/run/node*.log
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 0
