@@ -1,0 +1,45 @@
+name: Diagnose RK3588 QEMU MSI-X enable and eventfd consumption v11
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4-retry11.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instrument working retry9 diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/stage-rk3588-qemu-msix-v4-retry9.yml').read_text().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='run: |')+1
+          end=next(i for i in range(start,len(src)) if src[i].startswith('      - uses:'))
+          body='\n'.join((l[10:] if l.startswith('          ') else l) for l in src[start:end])+'\n'
+
+          old='pr_info("RKMESH_IRQ_READY id=%u irq=%d bar2=%pa\\n",d->id,irq,&pdev->resource[2].start);'
+          new='{ int cap=pci_find_capability(pdev,PCI_CAP_ID_MSIX);u16 ctl=0;if(cap)pci_read_config_word(pdev,cap+PCI_MSIX_FLAGS,&ctl);pr_info("RKMESH_IRQ_READY id=%u irq=%d msix_enabled=%u cap=%d ctl=0x%04x bar2=%pa\\n",d->id,irq,pdev->msix_enabled?1:0,cap,ctl,&pdev->resource[2].start); }'
+          if old not in body: raise SystemExit('ready log anchor missing')
+          body=body.replace(old,new)
+
+          oldinj="print(f'IVSHMEM_ALL_PEERS count={len(peers)}',flush=True);import time;time.sleep(7);os.write(peers[1][2],struct.pack('<Q',1));print('IVSHMEM_HOST_INJECT peer=1 vector=0',flush=True);sel=selectors.DefaultSelector()"
+          newinj="print(f'IVSHMEM_ALL_PEERS count={len(peers)}',flush=True);import time;time.sleep(7);os.write(peers[1][2],struct.pack('<Q',1));print('IVSHMEM_HOST_INJECT peer=1 vector=0',flush=True);time.sleep(2);\n              try:\n                  raw=os.read(peers[1][2],8);print('IVSHMEM_EVENTFD_UNCONSUMED peer=1 value=%d'%struct.unpack('<Q',raw)[0],flush=True)\n              except BlockingIOError:\n                  print('IVSHMEM_EVENTFD_CONSUMED peer=1',flush=True)\n              sel=selectors.DefaultSelector()"
+          if oldinj not in body: raise SystemExit('eventfd injection anchor missing')
+          body=body.replace(oldinj,newinj)
+          Path('/tmp/stage.sh').write_text(body)
+          PY
+          bash /tmp/stage.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rk3588-qemu-arm64-msix-v4-retry11-diagnostic
+          path: |
+            out/run/server.log
+            out/run/node*.log
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 0
