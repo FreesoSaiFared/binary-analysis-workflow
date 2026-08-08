@@ -1,0 +1,40 @@
+name: Prove RK3588 ARM QEMU ivshmem MSI-X with bus mastering v15
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4-retry15.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build four-guest IRQ chain with pci_set_master
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/stage-rk3588-qemu-msix-v4-retry8.yml').read_text().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='run: |')+1
+          end=next(i for i in range(start,len(src)) if src[i].startswith('      - uses:'))
+          body='\n'.join((l[10:] if l.startswith('          ') else l) for l in src[start:end])+'\n'
+          # retry8 already contains the working header build, driver-name fix,
+          # ioeventfd=off and the original strict 4-guest IRQ assertions.
+          old='rc=pcim_enable_device(pdev);if(rc)return rc;rc=pcim_iomap_regions(pdev,BIT(0)|BIT(2),"rkmesh_ivshmem");if(rc)return rc;'
+          new='rc=pcim_enable_device(pdev);if(rc)return rc;pci_set_master(pdev);rc=pcim_iomap_regions(pdev,BIT(0)|BIT(2),"rkmesh_ivshmem");if(rc)return rc;'
+          if old not in body: raise SystemExit('pcim_enable_device anchor missing')
+          body=body.replace(old,new)
+          Path('/tmp/stage.sh').write_text(body)
+          PY
+          bash /tmp/stage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-qemu-arm64-msix-v15
+          path: |
+            rk3588-qemu-arm64-msix-v4.tar.gz
+            rk3588-qemu-arm64-msix-v4.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
