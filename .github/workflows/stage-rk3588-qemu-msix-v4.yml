@@ -1,0 +1,163 @@
+name: Stage RK3588 ARM64 QEMU MSI-X proof v4
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Build four-guest MSI-X receive proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work out
+          cat > work/ivshmem_server.py <<'PY'
+          #!/usr/bin/env python3
+          import argparse,array,os,selectors,socket,struct
+          def send(s,v,fd=None):
+              p=struct.pack('<q',v)
+              if fd is None:s.sendall(p)
+              else:s.sendmsg([p],[(socket.SOL_SOCKET,socket.SCM_RIGHTS,array.array('i',[fd]))])
+          p=argparse.ArgumentParser();p.add_argument('-S',required=True);p.add_argument('-m',required=True);p.add_argument('-l',type=int,default=16777216);p.add_argument('--peers',type=int,default=4);a=p.parse_args()
+          for x in(a.S,a.m):
+              try:os.unlink(x)
+              except FileNotFoundError:pass
+          shm=os.open(a.m,os.O_CREAT|os.O_RDWR,0o600);os.ftruncate(shm,a.l);ls=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);ls.bind(a.S);ls.listen(a.peers);peers=[]
+          print(f'IVSHMEM_SERVER_READY socket={a.S} size={a.l}',flush=True)
+          for pid in range(a.peers):
+              c,_=ls.accept();ev=os.eventfd(0,os.EFD_CLOEXEC|os.EFD_NONBLOCK);send(c,0);send(c,pid);send(c,-1,shm)
+              for oid,oc,oe in peers:send(c,oid,oe)
+              for oid,oc,oe in peers:send(oc,pid,ev)
+              send(c,pid,ev);peers.append((pid,c,ev));print(f'IVSHMEM_PEER_CONNECTED id={pid}',flush=True)
+          print(f'IVSHMEM_ALL_PEERS count={len(peers)}',flush=True);sel=selectors.DefaultSelector()
+          for pid,c,_ in peers:c.setblocking(False);sel.register(c,selectors.EVENT_READ,pid)
+          while peers:
+              for key,_ in sel.select(1):
+                  try:d=key.fileobj.recv(1)
+                  except BlockingIOError:continue
+                  if d==b'':
+                      print(f'IVSHMEM_PEER_DISCONNECTED id={key.data}',flush=True)
+                      try:sel.unregister(key.fileobj);key.fileobj.close()
+                      except Exception:pass
+                      peers[:]=[x for x in peers if x[0]!=key.data]
+          PY
+          cat > work/rkmesh_ivshmem.c <<'C'
+          #include <linux/module.h>
+          #include <linux/pci.h>
+          #include <linux/interrupt.h>
+          #include <linux/workqueue.h>
+          #include <linux/atomic.h>
+          #include <linux/io.h>
+          #include <linux/delay.h>
+
+          #define RK_VENDOR 0x1af4
+          #define RK_DEVICE 0x1110
+          #define OFF_POS 8
+          #define OFF_DOORBELL 12
+          #define READY_BASE 0x000
+          #define VALUE_BASE 0x100
+          #define DONE_OFF 0x200
+          #define DONE_MAGIC 0x600df00dU
+
+          struct rkmesh_dev { struct pci_dev *pdev; void __iomem *bar0; void __iomem *bar2; u32 id; atomic_t irq_count; struct delayed_work monitor; bool started; bool passed; };
+
+          static u64 mix_value(u64 x,u32 id){x^=0x9e3779b97f4a7c15ULL+id+(x<<6)+(x>>2);return x*0xbf58476d1ce4e5b9ULL;}
+          static inline u32 rd_ready(struct rkmesh_dev*d,u32 id){return readl(d->bar2+READY_BASE+id*4);}
+          static inline u64 rd_value(struct rkmesh_dev*d,u32 id){return readq(d->bar2+VALUE_BASE+id*8);}
+          static inline void wr_value(struct rkmesh_dev*d,u32 id,u64 v){writeq(v,d->bar2+VALUE_BASE+id*8);}
+          static inline void ring_peer(struct rkmesh_dev*d,u32 peer){writel(peer<<16,d->bar0+OFF_DOORBELL);}
+
+          static irqreturn_t rkmesh_irq(int irq,void*opaque){
+              struct rkmesh_dev*d=opaque;int count=atomic_inc_return(&d->irq_count);u64 pred,own;
+              pr_info("RKMESH_IRQ_RECEIVED id=%u count=%d irq=%d\n",d->id,count,irq);
+              if(d->id==0)return IRQ_HANDLED;
+              pred=rd_value(d,d->id-1);if(!pred){pr_err("RKMESH_IRQ_FAIL id=%u reason=no_predecessor\n",d->id);return IRQ_HANDLED;}
+              own=mix_value(pred,d->id);wr_value(d,d->id,own);wmb();
+              if(d->id<3){ring_peer(d,d->id+1);pr_info("RKMESH_IRQ_DOORBELL from=%u to=%u vector=0\n",d->id,d->id+1);}else{writel(DONE_MAGIC,d->bar2+DONE_OFF);pr_info("RKMESH_IRQ_CHAIN_DONE final=0x%016llx\n",own);}
+              return IRQ_HANDLED;
+          }
+
+          static void rkmesh_monitor(struct work_struct*w){
+              struct rkmesh_dev*d=container_of(to_delayed_work(w),struct rkmesh_dev,monitor);u32 done;u64 final;int count;
+              if(d->id==0&&!d->started){
+                  if(rd_ready(d,0)&&rd_ready(d,1)&&rd_ready(d,2)&&rd_ready(d,3)){wr_value(d,0,0x3588358835883588ULL);wmb();d->started=true;ring_peer(d,1);pr_info("RKMESH_IRQ_DOORBELL from=0 to=1 vector=0\n");}
+              }
+              done=readl(d->bar2+DONE_OFF);count=atomic_read(&d->irq_count);
+              if(done==DONE_MAGIC&&!d->passed){
+                  final=rd_value(d,3);d->passed=true;
+                  if((d->id==0&&count==0)||(d->id>0&&count==1))pr_info("RKMESH_IRQ_PASS id=%u irq_count=%d final=0x%016llx\n",d->id,count,final);
+                  else pr_err("RKMESH_IRQ_FAIL id=%u irq_count=%d final=0x%016llx\n",d->id,count,final);
+                  return;
+              }
+              schedule_delayed_work(&d->monitor,msecs_to_jiffies(10));
+          }
+
+          static int rkmesh_probe(struct pci_dev*pdev,const struct pci_device_id*id){
+              struct rkmesh_dev*d;int rc,irq;
+              d=devm_kzalloc(&pdev->dev,sizeof(*d),GFP_KERNEL);if(!d)return -ENOMEM;d->pdev=pdev;pci_set_drvdata(pdev,d);
+              rc=pcim_enable_device(pdev);if(rc)return rc;rc=pcim_iomap_regions(pdev,BIT(0)|BIT(2),"rkmesh_ivshmem");if(rc)return rc;
+              d->bar0=pcim_iomap_table(pdev)[0];d->bar2=pcim_iomap_table(pdev)[2];if(!d->bar0||!d->bar2)return -ENODEV;d->id=readl(d->bar0+OFF_POS);if(d->id>3)return -EINVAL;
+              rc=pci_alloc_irq_vectors(pdev,1,1,PCI_IRQ_MSIX);if(rc<0){dev_err(&pdev->dev,"RKMESH_IRQ_FAIL id=%u alloc_msix=%d\n",d->id,rc);return rc;}irq=pci_irq_vector(pdev,0);rc=request_irq(irq,rkmesh_irq,0,"rkmesh_ivshmem",d);if(rc){pci_free_irq_vectors(pdev);return rc;}
+              atomic_set(&d->irq_count,0);INIT_DELAYED_WORK(&d->monitor,rkmesh_monitor);wr_value(d,d->id,0);wmb();writel(0x35880000U|d->id,d->bar2+READY_BASE+d->id*4);wmb();
+              pr_info("RKMESH_IRQ_READY id=%u irq=%d bar2=%pa\n",d->id,irq,&pdev->resource[2].start);schedule_delayed_work(&d->monitor,msecs_to_jiffies(10));return 0;
+          }
+          static void rkmesh_remove(struct pci_dev*pdev){struct rkmesh_dev*d=pci_get_drvdata(pdev);cancel_delayed_work_sync(&d->monitor);free_irq(pci_irq_vector(pdev,0),d);pci_free_irq_vectors(pdev);}
+          static const struct pci_device_id ids[]={{PCI_DEVICE(RK_VENDOR,RK_DEVICE)},{0,}};MODULE_DEVICE_TABLE(pci,ids);
+          static struct pci_driver driver={.name="rkmesh_ivshmem",.id_table=ids,.probe=rkmesh_probe,.remove=rkmesh_remove};module_pci_driver(driver);
+          MODULE_LICENSE("GPL");MODULE_DESCRIPTION("Minimal ivshmem MSI-X proof driver");
+          C
+          cat > work/init.c <<'C'
+          #define _GNU_SOURCE
+          #include <errno.h>
+          #include <fcntl.h>
+          #include <stdio.h>
+          #include <sys/mount.h>
+          #include <sys/reboot.h>
+          #include <sys/syscall.h>
+          #include <unistd.h>
+          #include <sys/stat.h>
+          int main(void){mkdir("/proc",0555);mkdir("/sys",0555);mkdir("/dev",0755);mount("proc","/proc","proc",0,0);mount("sysfs","/sys","sysfs",0,0);mount("devtmpfs","/dev","devtmpfs",0,0);int fd=open("/rkmesh_ivshmem.ko",O_RDONLY);if(fd<0){perror("module open");return 2;}int rc=syscall(SYS_finit_module,fd,"",0);int e=errno;close(fd);printf("RKMESH_MODULE_LOAD rc=%d errno=%d\n",rc,e);fflush(stdout);if(rc)return 3;sleep(5);sync();printf("RKMESH_IRQ_GUEST_EXIT\n");fflush(stdout);reboot(RB_POWER_OFF);for(;;)pause();}
+          C
+          cat > work/Makefile <<'MK'
+          obj-m += rkmesh_ivshmem.o
+          MK
+          chmod +x work/ivshmem_server.py
+
+          docker run --rm --privileged -v "$PWD:/work" debian:trixie bash -lc '
+            set -euo pipefail;dpkg --add-architecture arm64;apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-system-arm gcc-aarch64-linux-gnu libc6-dev-arm64-cross cpio ca-certificates xz-utils make
+            cd /tmp;kp=$(apt-cache depends linux-image-arm64:arm64|awk "/Depends: linux-image-[0-9]/{print \$2;exit}");test -n "$kp";kb=${kp%%:*};ver=${kb#linux-image-};apt-get download "$kp";dpkg-deb -x "${kb}_"*"_arm64.deb" /tmp/kernel
+            hp="linux-headers-${ver}:arm64";apt-get download "$hp";hb=${hp%%:*};dpkg-deb -x "${hb}_"*"_arm64.deb" /tmp/headers
+            common=$(apt-cache depends "$hp"|awk "/Depends: linux-headers-[0-9].*-common/{print \$2;exit}");test -n "$common";apt-get download "$common";cb=${common%%:*};dpkg-deb -x "${cb}_"*"_all.deb" /tmp/headers
+            hdr=$(find /tmp/headers/usr/src -maxdepth 1 -type d -name "linux-headers-${ver}"|head -1);test -n "$hdr";make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/work modules
+            aarch64-linux-gnu-gcc -O2 -static -s /work/work/init.c -o /work/work/init
+            mkdir -p /work/out/runtime/bin /work/out/runtime/lib /work/out/runtime/lib64 /work/out/guest/root/{proc,sys,dev}
+            cp /usr/bin/qemu-system-aarch64 /work/out/runtime/bin/;ldd /usr/bin/qemu-system-aarch64|awk "{for(i=1;i<=NF;i++)if(\$i~/^\//)print \$i}"|sort -u >/tmp/libs;while read -r lib;do mkdir -p "/work/out/runtime$(dirname "$lib")";cp -L "$lib" "/work/out/runtime$lib";done </tmp/libs
+            loader=$(ldd /usr/bin/qemu-system-aarch64|awk "/ld-linux/{print \$1;exit}");test -n "$loader"||loader=/lib64/ld-linux-x86-64.so.2;mkdir -p "/work/out/runtime$(dirname "$loader")";cp -L "$loader" "/work/out/runtime$loader"
+            kernel=$(find /tmp/kernel/boot -maxdepth 1 -name "vmlinuz-*"|head -1);cp "$kernel" /work/out/guest/Image;cp /work/work/init /work/out/guest/root/init;cp /work/work/rkmesh_ivshmem.ko /work/out/guest/root/rkmesh_ivshmem.ko
+            cd /work/out/guest/root;find . -print0|cpio --null -ov --format=newc 2>/dev/null|gzip -9 >/work/out/guest/initramfs.cpio.gz
+            /work/out/runtime/lib64/ld-linux-x86-64.so.2 --library-path /work/out/runtime/lib/x86_64-linux-gnu:/work/out/runtime/usr/lib/x86_64-linux-gnu /work/out/runtime/bin/qemu-system-aarch64 --version >/work/out/QEMU_VERSION.txt
+          '
+          cp work/ivshmem_server.py work/rkmesh_ivshmem.c work/init.c out/;chmod +x out/ivshmem_server.py
+          cat > out/run-four-msix.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail;H=$(cd "$(dirname "$0")"&&pwd);R=${RUN:-"$H/run"};rm -rf "$R";mkdir -p "$R";L="$H/runtime/lib64/ld-linux-x86-64.so.2";LP="$H/runtime/lib/x86_64-linux-gnu:$H/runtime/usr/lib/x86_64-linux-gnu";Q=("$L" --library-path "$LP" "$H/runtime/bin/qemu-system-aarch64");S="$R/iv.sock";M="$R/iv.bin"
+          python3 "$H/ivshmem_server.py" -S "$S" -m "$M" --peers 4 >"$R/server.log" 2>&1 &srv=$!;trap 'kill $srv 2>/dev/null||true;jobs -pr|xargs -r kill 2>/dev/null||true' EXIT;for i in $(seq 1 100);do [ -S "$S" ]&&break;sleep .02;done
+          p=();for n in 0 1 2 3;do "${Q[@]}" -M virt -cpu cortex-a76 -smp 1 -m 192M -display none -nodefaults -kernel "$H/guest/Image" -initrd "$H/guest/initramfs.cpio.gz" -append 'console=ttyAMA0 rdinit=/init panic=-1' -chardev socket,path="$S",id=iv$n -device ivshmem-doorbell,vectors=1,chardev=iv$n -serial "file:$R/node$n.log" -monitor none &p+=("$!");done
+          rc=0;for x in "${p[@]}";do wait "$x"||rc=1;done;grep -q 'IVSHMEM_ALL_PEERS count=4' "$R/server.log";test "$(grep -h 'RKMESH_MODULE_LOAD rc=0' "$R"/node*.log|wc -l)" -eq 4;test "$(grep -h 'RKMESH_IRQ_RECEIVED' "$R"/node*.log|wc -l)" -eq 3;test "$(grep -h 'RKMESH_IRQ_PASS' "$R"/node*.log|wc -l)" -eq 4;test "$(grep -h 'RKMESH_IRQ_PASS id=0 irq_count=0' "$R"/node*.log|wc -l)" -eq 1;for n in 1 2 3;do test "$(grep -h "RKMESH_IRQ_PASS id=$n irq_count=1" "$R"/node*.log|wc -l)" -eq 1;done;test "$(grep -h 'RKMESH_IRQ_PASS' "$R"/node*.log|sed -n 's/.*final=//p'|sort -u|wc -l)" -eq 1
+          { grep 'IVSHMEM_SERVER_READY\|IVSHMEM_ALL_PEERS' "$R/server.log";grep -h 'RKMESH_MODULE_LOAD\|RKMESH_IRQ_READY\|RKMESH_IRQ_RECEIVED\|RKMESH_IRQ_DOORBELL\|RKMESH_IRQ_CHAIN_DONE\|RKMESH_IRQ_PASS\|RKMESH_IRQ_GUEST_EXIT' "$R"/node*.log;echo RKMESH_QEMU_4ARM64_MSIX_PASS;}|tee "$R/RESULT.txt";exit "$rc"
+          SH
+          chmod +x out/run-four-msix.sh;timeout 120 ./out/run-four-msix.sh
+          rm -rf out/run;cd out;find . -type f ! -name SHA256SUMS -print0|sort -z|xargs -0 sha256sum >SHA256SUMS;cd ..;tar -C out -czf rk3588-qemu-arm64-msix-v4.tar.gz .;sha256sum rk3588-qemu-arm64-msix-v4.tar.gz >rk3588-qemu-arm64-msix-v4.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-qemu-arm64-msix-v4
+          path: |
+            rk3588-qemu-arm64-msix-v4.tar.gz
+            rk3588-qemu-arm64-msix-v4.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
