@@ -1,0 +1,48 @@
+name: Retry RK3588 ARM64 QEMU MSI-X proof v4 native-header-path
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4-retry6.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute v4 with native header path and source fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/stage-rk3588-qemu-msix-v4.yml').read_text().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='run: |')+1
+          end=next(i for i in range(start,len(src)) if src[i].startswith('      - uses:'))
+          lines=[l[10:] if l.startswith('          ') else l for l in src[start:end]]
+          a=next(i for i,l in enumerate(lines) if 'cd /tmp;kp=$(apt-cache depends linux-image-arm64:arm64' in l)
+          b=next(i for i,l in enumerate(lines[a:],a) if 'aarch64-linux-gnu-gcc -O2 -static -s /work/work/init.c' in l)
+          replacement=[
+              '  cd /tmp;kp=$(apt-cache depends linux-image-arm64:arm64|awk "/Depends: linux-image-[0-9]/{print \\$2;exit}");test -n "$kp";kb=${kp%%:*};ver=${kb#linux-image-};apt-get download "$kp";dpkg-deb -x "${kb}_"*"_arm64.deb" /tmp/kernel',
+              '  hp="linux-headers-${ver}:arm64";apt-get download "$hp";hb=${hp%%:*}',
+              '  common="linux-headers-${ver%-arm64}-common";kbuild="linux-kbuild-${ver%-arm64}";DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$common" "$kbuild"',
+              '  dpkg-deb -x "${hb}_"*"_arm64.deb" /',
+              '  hdr="/usr/src/linux-headers-${ver}";test -d "$hdr";test -x "$hdr/scripts/basic/fixdep" || test -x "/usr/lib/linux-kbuild-${ver%-arm64}/scripts/basic/fixdep";make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/work modules',
+          ]
+          lines[a:b]=replacement
+          body='\n'.join(lines)+'\n'
+          old='static struct pci_driver driver={.name="rkmesh_ivshmem",.id_table=ids,.probe=rkmesh_probe,.remove=rkmesh_remove};module_pci_driver(driver);'
+          new='static struct pci_driver rkmesh_pci_driver={.name="rkmesh_ivshmem",.id_table=ids,.probe=rkmesh_probe,.remove=rkmesh_remove};module_pci_driver(rkmesh_pci_driver);'
+          if old not in body: raise SystemExit('expected pci_driver declaration not found')
+          Path('/tmp/stage.sh').write_text(body.replace(old,new))
+          PY
+          bash /tmp/stage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-qemu-arm64-msix-v4-retry6
+          path: |
+            rk3588-qemu-arm64-msix-v4.tar.gz
+            rk3588-qemu-arm64-msix-v4.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
