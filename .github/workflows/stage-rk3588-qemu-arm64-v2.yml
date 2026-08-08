@@ -1,0 +1,243 @@
+name: Stage RK3588 ARM64 QEMU lab runtime v2
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-arm64-v2.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Build and prove four ARM64 Linux guests over ivshmem
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work out
+
+          cat > work/ivshmem_server.py <<'PY'
+          #!/usr/bin/env python3
+          import argparse, array, os, selectors, socket, struct
+
+          def send_msg(sock, value, fd=None):
+              payload = struct.pack('<q', value)
+              if fd is None:
+                  sock.sendall(payload)
+              else:
+                  fds = array.array('i', [fd])
+                  sock.sendmsg([payload], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, fds)])
+
+          def main():
+              ap = argparse.ArgumentParser()
+              ap.add_argument('-S', '--socket', required=True)
+              ap.add_argument('-m', '--memory', required=True)
+              ap.add_argument('-l', '--size', type=int, default=16 * 1024 * 1024)
+              ap.add_argument('-n', '--vectors', type=int, default=1)
+              ap.add_argument('--peers', type=int, default=4)
+              a = ap.parse_args()
+              for p in (a.socket, a.memory):
+                  try: os.unlink(p)
+                  except FileNotFoundError: pass
+              shmfd = os.open(a.memory, os.O_CREAT | os.O_RDWR, 0o600)
+              os.ftruncate(shmfd, a.size)
+              ls = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+              ls.bind(a.socket); ls.listen(a.peers)
+              peers = []
+              print(f'IVSHMEM_SERVER_READY socket={a.socket} size={a.size} vectors={a.vectors}', flush=True)
+              for peer_id in range(a.peers):
+                  conn, _ = ls.accept()
+                  own_events = [os.eventfd(0, os.EFD_CLOEXEC | os.EFD_NONBLOCK) for _ in range(a.vectors)]
+                  send_msg(conn, 0)
+                  send_msg(conn, peer_id)
+                  send_msg(conn, -1, shmfd)
+                  for old_id, old_conn, old_events in peers:
+                      for fd in old_events: send_msg(conn, old_id, fd)
+                  for old_id, old_conn, old_events in peers:
+                      for fd in own_events: send_msg(old_conn, peer_id, fd)
+                  for fd in own_events: send_msg(conn, peer_id, fd)
+                  peers.append((peer_id, conn, own_events))
+                  print(f'IVSHMEM_PEER_CONNECTED id={peer_id}', flush=True)
+              print(f'IVSHMEM_ALL_PEERS count={len(peers)}', flush=True)
+              sel = selectors.DefaultSelector()
+              for peer_id, conn, _ in peers:
+                  conn.setblocking(False); sel.register(conn, selectors.EVENT_READ, peer_id)
+              while peers:
+                  for key, _ in sel.select(timeout=1.0):
+                      try: data = key.fileobj.recv(1)
+                      except BlockingIOError: continue
+                      if data == b'':
+                          print(f'IVSHMEM_PEER_DISCONNECTED id={key.data}', flush=True)
+                          try: sel.unregister(key.fileobj)
+                          except Exception: pass
+                          try: key.fileobj.close()
+                          except Exception: pass
+                          peers[:] = [p for p in peers if p[0] != key.data]
+          if __name__ == '__main__': main()
+          PY
+
+          cat > work/rkmesh_guest.c <<'C'
+          #define _GNU_SOURCE
+          #include <dirent.h>
+          #include <fcntl.h>
+          #include <inttypes.h>
+          #include <stdint.h>
+          #include <stdio.h>
+          #include <stdlib.h>
+          #include <sys/mman.h>
+          #include <sys/stat.h>
+          #include <unistd.h>
+
+          static int read_hex(const char *p, unsigned *v) {
+              FILE *f=fopen(p,"r"); if(!f) return -1; int r=fscanf(f,"0x%x",v); fclose(f); return r==1?0:-1;
+          }
+          static int find_dev(char *out, size_t n) {
+              DIR *d=opendir("/sys/bus/pci/devices"); if(!d) return -1; struct dirent *e;
+              while((e=readdir(d))) {
+                  if(e->d_name[0]=='.') continue; char p[512]; unsigned ven=0,dev=0;
+                  snprintf(p,sizeof(p),"/sys/bus/pci/devices/%s/vendor",e->d_name); if(read_hex(p,&ven)) continue;
+                  snprintf(p,sizeof(p),"/sys/bus/pci/devices/%s/device",e->d_name); if(read_hex(p,&dev)) continue;
+                  if(ven==0x1af4 && dev==0x1110) { snprintf(out,n,"/sys/bus/pci/devices/%s",e->d_name); closedir(d); return 0; }
+              }
+              closedir(d); return -1;
+          }
+          static void *map_bar(const char *dev, int bar, size_t *len) {
+              char p[512]; snprintf(p,sizeof(p),"%s/resource%d",dev,bar); int fd=open(p,O_RDWR|O_SYNC); if(fd<0){perror(p);return MAP_FAILED;}
+              struct stat st; if(fstat(fd,&st)){perror("fstat");close(fd);return MAP_FAILED;} *len=(size_t)st.st_size;
+              void *m=mmap(NULL,*len,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0); close(fd); if(m==MAP_FAILED) perror("mmap"); return m;
+          }
+          static uint64_t mix(uint64_t x, unsigned id) {
+              x ^= 0x9e3779b97f4a7c15ULL + id + (x<<6) + (x>>2); return x*0xbf58476d1ce4e5b9ULL;
+          }
+          int main(void) {
+              char dev[512]; if(find_dev(dev,sizeof(dev))){puts("RKMESH_FAIL no_ivshmem");return 2;}
+              size_t l0=0,l2=0; volatile uint32_t *bar0=map_bar(dev,0,&l0); volatile uint8_t *bar2=map_bar(dev,2,&l2);
+              if(bar0==MAP_FAILED || bar2==MAP_FAILED || l0<16 || l2<4096){puts("RKMESH_FAIL map");return 3;}
+              unsigned id=bar0[2]; if(id>3){printf("RKMESH_FAIL bad_id=%u\n",id);return 4;}
+              volatile uint32_t *ready=(volatile uint32_t *)(bar2+0x000);
+              volatile uint64_t *value=(volatile uint64_t *)(bar2+0x100);
+              volatile uint32_t *done=(volatile uint32_t *)(bar2+0x200);
+              value[id]=0; __sync_synchronize(); ready[id]=0x35880000u|id; __sync_synchronize();
+              printf("RKMESH_GUEST_READY id=%u dev=%s bar0=%zu bar2=%zu\n",id,dev,l0,l2); fflush(stdout);
+              if(id==0){
+                  for(int t=0;t<2000;t++){ if(ready[0]&&ready[1]&&ready[2]&&ready[3]) break; usleep(10000); }
+                  if(!(ready[0]&&ready[1]&&ready[2]&&ready[3])){puts("RKMESH_FAIL peers_timeout");return 5;}
+                  value[0]=0x3588358835883588ULL; __sync_synchronize(); bar0[3]=(1u<<16)|0u;
+                  puts("RKMESH_DOORBELL from=0 to=1 vector=0"); fflush(stdout);
+              } else {
+                  for(int t=0;t<4000;t++){ if(value[id-1]!=0) break; usleep(10000); }
+                  if(value[id-1]==0){printf("RKMESH_FAIL predecessor_timeout id=%u\n",id);return 6;}
+                  value[id]=mix(value[id-1],id); __sync_synchronize();
+                  if(id<3){ bar0[3]=((id+1u)<<16)|0u; printf("RKMESH_DOORBELL from=%u to=%u vector=0\n",id,id+1); }
+                  else { *done=0x600df00dU; printf("RKMESH_CHAIN_DONE final=0x%016" PRIx64 "\n",value[id]); }
+                  fflush(stdout);
+              }
+              for(int t=0;t<4000;t++){ if(*done==0x600df00dU) break; usleep(10000); }
+              if(*done!=0x600df00dU){printf("RKMESH_FAIL done_timeout id=%u\n",id);return 7;}
+              printf("RKMESH_PASS id=%u final=0x%016" PRIx64 "\n",id,value[3]); fflush(stdout);
+              return 0;
+          }
+          C
+
+          cat > work/init <<'SH'
+          #!/bin/sh
+          mount -t proc proc /proc
+          mount -t sysfs sysfs /sys
+          mount -t devtmpfs devtmpfs /dev
+          echo RKMESH_INIT $(uname -m) $(uname -r)
+          /rkmesh_guest
+          rc=$?
+          sync
+          echo RKMESH_GUEST_EXIT rc=$rc
+          poweroff -f
+          SH
+          chmod +x work/init work/ivshmem_server.py
+
+          docker run --rm --privileged -v "$PWD:/work" debian:trixie bash -lc '
+            set -euo pipefail
+            dpkg --add-architecture arm64
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-system-arm gcc-aarch64-linux-gnu libc6-dev-arm64-cross cpio ca-certificates xz-utils busybox-static
+            mkdir -p /work/out/runtime/bin /work/out/runtime/lib /work/out/runtime/lib64 /work/out/runtime/usr/share/qemu /work/out/guest/root
+            cp /usr/bin/qemu-system-aarch64 /work/out/runtime/bin/
+            ldd /usr/bin/qemu-system-aarch64 | awk "{for(i=1;i<=NF;i++) if(\$i ~ /^\//) print \$i}" | sort -u > /tmp/qemu.libs
+            while read -r lib; do mkdir -p "/work/out/runtime$(dirname "$lib")"; cp -L "$lib" "/work/out/runtime$lib"; done < /tmp/qemu.libs
+            loader=$(ldd /usr/bin/qemu-system-aarch64 | awk "/ld-linux/{print \$1; exit}")
+            test -n "$loader" || loader=/lib64/ld-linux-x86-64.so.2
+            mkdir -p "/work/out/runtime$(dirname "$loader")"; cp -L "$loader" "/work/out/runtime$loader"
+            cp -a /usr/share/qemu/. /work/out/runtime/usr/share/qemu/ || true
+            aarch64-linux-gnu-gcc -O2 -static -s /work/work/rkmesh_guest.c -o /work/out/guest/rkmesh_guest
+            cd /tmp
+            apt-get download busybox-static:arm64
+            dpkg-deb -x busybox-static_*_arm64.deb /work/out/guest/busybox-arm64
+            kernel_pkg=$(apt-cache depends linux-image-arm64:arm64 | awk "/Depends: linux-image-[0-9]/{print \$2; exit}")
+            test -n "$kernel_pkg"
+            kernel_base=${kernel_pkg%%:*}
+            apt-get download "$kernel_pkg"
+            dpkg-deb -x "${kernel_base}_"*"_arm64.deb" /work/out/guest/kernel-tree
+            kernel=$(find /work/out/guest/kernel-tree/boot -maxdepth 1 -type f -name "vmlinuz-*" | head -1)
+            test -n "$kernel"
+            cp "$kernel" /work/out/guest/Image
+            root=/work/out/guest/root
+            mkdir -p "$root"/{bin,sbin,proc,sys,dev,tmp}
+            cp /work/out/guest/busybox-arm64/bin/busybox "$root/bin/busybox"
+            for x in sh mount uname poweroff sleep sync cat dmesg; do ln -sf busybox "$root/bin/$x"; done
+            cp /work/out/guest/rkmesh_guest "$root/rkmesh_guest"
+            cp /work/work/init "$root/init"
+            chmod +x "$root/init" "$root/rkmesh_guest"
+            cd "$root"
+            find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > /work/out/guest/initramfs.cpio.gz
+            /work/out/runtime/lib64/ld-linux-x86-64.so.2 --library-path /work/out/runtime/lib/x86_64-linux-gnu:/work/out/runtime/usr/lib/x86_64-linux-gnu /work/out/runtime/bin/qemu-system-aarch64 --version > /work/out/QEMU_VERSION.txt
+            sha256sum /work/out/runtime/bin/qemu-system-aarch64 /work/out/guest/Image /work/out/guest/initramfs.cpio.gz /work/out/guest/rkmesh_guest > /work/out/IDENTITY.sha256
+          '
+
+          cp work/ivshmem_server.py out/
+          cat > out/run-four.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          HERE=$(cd "$(dirname "$0")" && pwd)
+          RUN=${RUN:-"$HERE/run"}; rm -rf "$RUN"; mkdir -p "$RUN"
+          LOADER="$HERE/runtime/lib64/ld-linux-x86-64.so.2"
+          LIBS="$HERE/runtime/lib/x86_64-linux-gnu:$HERE/runtime/usr/lib/x86_64-linux-gnu"
+          QEMU=("$LOADER" --library-path "$LIBS" "$HERE/runtime/bin/qemu-system-aarch64")
+          SOCK="$RUN/ivshmem.sock"; MEM="$RUN/ivshmem.bin"
+          python3 "$HERE/ivshmem_server.py" -S "$SOCK" -m "$MEM" -l $((16*1024*1024)) -n 1 --peers 4 >"$RUN/server.log" 2>&1 & server=$!
+          trap 'kill $server 2>/dev/null || true; jobs -pr | xargs -r kill 2>/dev/null || true' EXIT
+          for i in $(seq 1 100); do [ -S "$SOCK" ] && break; sleep .02; done
+          pids=()
+          for n in 0 1 2 3; do
+            "${QEMU[@]}" -L "$HERE/runtime/usr/share/qemu" -M virt -cpu cortex-a76 -smp 1 -m 192M -display none -nodefaults \
+              -kernel "$HERE/guest/Image" -initrd "$HERE/guest/initramfs.cpio.gz" \
+              -append 'console=ttyAMA0 rdinit=/init panic=-1' \
+              -chardev socket,path="$SOCK",id=iv$n \
+              -device ivshmem-doorbell,vectors=1,chardev=iv$n \
+              -serial "file:$RUN/node$n.log" -monitor none &
+            pids+=("$!")
+          done
+          rc=0; for p in "${pids[@]}"; do wait "$p" || rc=1; done
+          cat "$RUN/server.log"
+          cat "$RUN"/node*.log
+          grep -q 'IVSHMEM_ALL_PEERS count=4' "$RUN/server.log"
+          pass_count=$(grep -h 'RKMESH_PASS' "$RUN"/node*.log | wc -l)
+          bell_count=$(grep -h 'RKMESH_DOORBELL' "$RUN"/node*.log | wc -l)
+          test "$pass_count" -eq 4
+          test "$bell_count" -eq 3
+          finals=$(grep -h 'RKMESH_PASS' "$RUN"/node*.log | sed -n 's/.*final=//p' | sort -u | wc -l)
+          test "$finals" -eq 1
+          grep -h 'RKMESH_CHAIN_DONE' "$RUN"/node*.log | tail -1 > "$RUN/RESULT.txt"
+          echo RKMESH_QEMU_4ARM64_PASS | tee -a "$RUN/RESULT.txt"
+          exit "$rc"
+          SH
+          chmod +x out/run-four.sh out/ivshmem_server.py
+          timeout 120 ./out/run-four.sh
+          find out -type f ! -path 'out/run/*' -print0 | sort -z | xargs -0 sha256sum > out/SHA256SUMS
+          tar -C out -czf rk3588-qemu-arm64-runtime.tar.gz .
+          sha256sum rk3588-qemu-arm64-runtime.tar.gz > rk3588-qemu-arm64-runtime.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-qemu-arm64-runtime-v2
+          path: |
+            rk3588-qemu-arm64-runtime.tar.gz
+            rk3588-qemu-arm64-runtime.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
