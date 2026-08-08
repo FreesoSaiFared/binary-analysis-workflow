@@ -1,0 +1,41 @@
+name: Retry RK3588 ARM64 QEMU MSI-X proof v4 path fix
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4-retry2.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute corrected v4 staging script
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/stage-rk3588-qemu-msix-v4.yml').read_text().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='run: |')+1
+          end=next(i for i in range(start,len(src)) if src[i].startswith('      - uses:'))
+          body='\n'.join((l[10:] if l.startswith('          ') else l) for l in src[start:end])+'\n'
+          old='common=$(apt-cache depends "$hp"|awk "/Depends: linux-headers-[0-9].*-common/{print \\$2;exit}");test -n "$common";apt-get download "$common";cb=${common%%:*};dpkg-deb -x "${cb}_"*"_all.deb" /tmp/headers'
+          new='common="linux-headers-${ver%-arm64}-common";apt-get download "$common";dpkg-deb -x "${common}_"*"_all.deb" /tmp/headers'
+          if old not in body: raise SystemExit('expected common-header line not found')
+          body=body.replace(old,new)
+          old2='hdr=$(find /tmp/headers/usr/src -maxdepth 1 -type d -name "linux-headers-${ver}"|head -1);test -n "$hdr";make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/work modules'
+          new2='hdr=$(find /tmp/headers/usr/src -maxdepth 1 -type d -name "linux-headers-${ver}"|head -1);test -n "$hdr";mkdir -p /usr/src;ln -sfn "/tmp/headers/usr/src/linux-headers-${ver%-arm64}-common" "/usr/src/linux-headers-${ver%-arm64}-common";ln -sfn "$hdr" "/usr/src/linux-headers-${ver}";make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/work modules'
+          if old2 not in body: raise SystemExit('expected make line not found')
+          Path('/tmp/stage.sh').write_text(body.replace(old2,new2))
+          PY
+          bash /tmp/stage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-qemu-arm64-msix-v4-retry2
+          path: |
+            rk3588-qemu-arm64-msix-v4.tar.gz
+            rk3588-qemu-arm64-msix-v4.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
