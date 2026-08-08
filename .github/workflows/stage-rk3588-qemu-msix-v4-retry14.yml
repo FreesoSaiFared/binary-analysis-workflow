@@ -1,0 +1,41 @@
+name: Diagnose RK3588 ARM QEMU GICv2m self MSI v14
+on:
+  push:
+    paths:
+      - .github/workflows/stage-rk3588-qemu-msix-v4-retry14.yml
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build MSI-X driver and self-inject programmed GICv2m message
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/stage-rk3588-qemu-msix-v4-retry13.yml').read_text().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='run: |')+1
+          end=next(i for i in range(start,len(src)) if src[i].startswith('      - uses:'))
+          # retry13 is itself a generator. Patch its generator so the generated
+          # module directly writes the known-good MSI message from peer 1.
+          body='\n'.join((l[10:] if l.startswith('          ') else l) for l in src[start:end])+'\n'
+          old="new_ready='''{ int cap=pci_find_capability(pdev,PCI_CAP_ID_MSIX);u16 ctl=0;u32 table=0;u32 alo=readl(d->bar1+0),ahi=readl(d->bar1+4),data=readl(d->bar1+8),vctl=readl(d->bar1+12);if(cap){pci_read_config_word(pdev,cap+PCI_MSIX_FLAGS,&ctl);pci_read_config_dword(pdev,cap+PCI_MSIX_TABLE,&table);}pr_info(\"RKMESH_IRQ_READY id=%u irq=%d msix_enabled=%u cap=%d ctl=0x%04x table=0x%08x msg_addr=0x%08x%08x msg_data=0x%08x vctl=0x%08x bar1=%pa bar2=%pa\\\\n\",d->id,irq,pdev->msix_enabled?1:0,cap,ctl,table,ahi,alo,data,vctl,&pdev->resource[1].start,&pdev->resource[2].start); }'''"
+          new="new_ready='''{ int cap=pci_find_capability(pdev,PCI_CAP_ID_MSIX);u16 ctl=0;u32 table=0;u32 alo=readl(d->bar1+0),ahi=readl(d->bar1+4),data=readl(d->bar1+8),vctl=readl(d->bar1+12);if(cap){pci_read_config_word(pdev,cap+PCI_MSIX_FLAGS,&ctl);pci_read_config_dword(pdev,cap+PCI_MSIX_TABLE,&table);}pr_info(\"RKMESH_IRQ_READY id=%u irq=%d msix_enabled=%u cap=%d ctl=0x%04x table=0x%08x msg_addr=0x%08x%08x msg_data=0x%08x vctl=0x%08x bar1=%pa bar2=%pa\\\\n\",d->id,irq,pdev->msix_enabled?1:0,cap,ctl,table,ahi,alo,data,vctl,&pdev->resource[1].start,&pdev->resource[2].start);if(d->id==1){void __iomem *setspi=ioremap(((u64)ahi<<32)|alo,4);if(setspi){msleep(100);pr_info(\"RKMESH_GICV2M_SELF_INJECT id=1 addr=0x%08x%08x data=0x%08x\\\\n\",ahi,alo,data);writel(data,setspi);iounmap(setspi);}else pr_err(\"RKMESH_GICV2M_SELF_INJECT_FAIL ioremap\\\\n\");}}'''"
+          if old not in body: raise SystemExit('retry13 ready-generator anchor missing')
+          body=body.replace(old,new)
+          Path('/tmp/retry13.sh').write_text(body)
+          PY
+          bash /tmp/retry13.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rk3588-qemu-arm64-msix-v4-retry14-diagnostic
+          path: |
+            out/run/server.log
+            out/run/node*.log
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 0
