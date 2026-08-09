@@ -228,8 +228,6 @@ static long rkmesh_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         x.latency_ns = ktime_get_ns() - start;
         x.from = owner;
         x.irq_count = atomic_read(&d->irq_count);
-        writel(STATE_IDLE, d->bar2 + STATE_OFF);
-        wmb();
         pr_info("RKMESH_V2_ACQUIRE_COMPLETE id=%u from=%u latency_ns=%llu checksum=0x%016llx\n",
                 d->id, owner, (unsigned long long)x.latency_ns,
                 (unsigned long long)checksum_page(d->local_page));
@@ -246,6 +244,7 @@ out_unlock:
             return -EPERM;
         if (copy_from_user(d->local_page, (void __user *)(unsigned long)x.user_ptr, PAGE_SIZE))
             return -EFAULT;
+        writel(STATE_IDLE, d->bar2 + STATE_OFF);
         wmb();
         pr_info("RKMESH_V2_COMMIT id=%u checksum=0x%016llx\n",
                 d->id, (unsigned long long)checksum_page(d->local_page));
