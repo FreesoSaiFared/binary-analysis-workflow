@@ -35,6 +35,17 @@ jobs:
           34052174b58fa5b8963b9a1db02128c0bc21f2427b7ae70745670a63c8d5d2ad  experiments/rk3588-state-v9/Makefile
           f6e96579ced1b2afa8ca1d58717ecb207fc3958a112cbbfac872e2b414e57679  experiments/rk3588-state-v9/EXPECTED_STATE_CHECKSUMS.txt
           EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('experiments/rk3588-state-v9/init.c')
+          s=p.read_text()
+          old='state_xfer_delta,expect_page,expect_state;config=config_for(mode,iter);'
+          new='state_xfer_delta,expect_page,expect_state;migrated=0;config=config_for(mode,iter);'
+          if old not in s:
+              raise SystemExit('V9 migrated-init patch anchor missing')
+          p.write_text(s.replace(old,new,1))
+          PY
+          echo '2f9dbbe8e05bf312283e95b8317da48f36f19c2fa32b7f78e04719e7acbeb396  experiments/rk3588-state-v9/init.c' | sha256sum -c -
           gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init.c"
           python3 -m py_compile "$D/ivshmem_server.py" "$D/run-v9-matrix.py" "$D/verify-v9.py"
           bash -n "$D/run-one-v9.sh"
