@@ -1,0 +1,36 @@
+name: Stage RK3588 fault-driven page v1
+
+on:
+  push:
+    paths:
+      - 'experiments/rk3588-fault-page-v1/**'
+      - '.github/workflows/stage-rk3588-fault-page-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cross-build static ARM64 init
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross file
+          mkdir -p out
+          aarch64-linux-gnu-gcc -O2 -static -s -Wall -Wextra -Werror \
+            experiments/rk3588-fault-page-v1/fault_page_init.c \
+            -o out/init
+          file out/init
+          sha256sum out/init | tee out/init.sha256
+          cp experiments/rk3588-fault-page-v1/fault_page_init.c out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-fault-page-v1-arm64-init
+          path: out/
+          retention-days: 2
+          compression-level: 0
