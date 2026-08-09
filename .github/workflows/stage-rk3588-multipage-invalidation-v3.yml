@@ -3,7 +3,7 @@ name: Prove RK3588 multi-page invalidation v3
 on:
   push:
     paths:
-      - 'experiments/rk3588-multipage-v3-src.tar.gz'
+      - 'experiments/rk3588-multipage-v3/**'
       - '.github/workflows/stage-rk3588-multipage-invalidation-v3.yml'
 
 permissions:
@@ -15,18 +15,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify and extract v3 source
+      - name: Verify v3 source
         shell: bash
         run: |
           set -euo pipefail
-          echo '75f8848b3a0c2dc25afcf60c8e5b745f32da8f0e39e9e9d60c8716ece7fdd785  experiments/rk3588-multipage-v3-src.tar.gz' | sha256sum -c -
-          rm -rf experiments/rk3588-multipage-v3
-          mkdir -p experiments/rk3588-multipage-v3 /tmp/v3src
-          tar -xzf experiments/rk3588-multipage-v3-src.tar.gz -C /tmp/v3src
-          cp -a /tmp/v3src/rk3588-multipage-v3-src/. experiments/rk3588-multipage-v3/
-          gcc -fsyntax-only -Wall -Wextra -Werror -pthread experiments/rk3588-multipage-v3/init.c
-          python3 -m py_compile experiments/rk3588-multipage-v3/ivshmem_server.py
-          bash -n experiments/rk3588-multipage-v3/run-four-v3.sh
+          cd experiments/rk3588-multipage-v3
+          cat <<'EOF' | sha256sum -c -
+          56db81f83f262f64bc9f6b5f0dbdbfcb34139cd55b96d86cbb7d8569179f8f22  Makefile
+          58c3e95fd34ee201024c6d1f160412d5d6928bcfc1f624e760eccbcc4e1e7613  init.c
+          43706cbe1cdbbf471cae217ec3f286b0151674a56bbe8082d7ad2f0b6a872f5d  ivshmem_server.py
+          6dbd255c580cc26f42d18599531bee0a5a270576c679f06ec72d8c724c87e148  rkmesh_pages.c
+          a238ba6ec0b58bb0979f3bbd2691acdf52c342cb897a2f995cb6fd23e683ff2e  run-four-v3.sh
+          EOF
+          gcc -fsyntax-only -Wall -Wextra -Werror -pthread init.c
+          python3 -m py_compile ivshmem_server.py
+          bash -n run-four-v3.sh
 
       - name: Cross-build ARM64 guest, module, and portable QEMU runtime
         shell: bash
