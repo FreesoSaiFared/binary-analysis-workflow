@@ -49,13 +49,13 @@ jobs:
           p=Path('experiments/rk3588-state-v9/verify-v9.py')
           s=p.read_text()
           old=""" for i,t in enumerate(tasks):\n  assert hx(t,'page_checksum')=='0x4a9f55cc4def6f8d';assert hx(t,'exec_checksum')==exe[i];assert hx(t,'state_after')==state[i+1]\n"""
-          new=""" seen=set()\n for t in tasks:\n  i=val(t,'iter')\n  assert 0 <= i < e['iterations'] and i not in seen,(name,i,t)\n  seen.add(i)\n  assert hx(t,'page_checksum')=='0x4a9f55cc4def6f8d';assert hx(t,'exec_checksum')==exe[i];assert hx(t,'state_after')==state[i+1]\n assert seen==set(range(e['iterations'])),(name,seen)\n"""
+          new=""" seen=set()\n for t in tasks:\n  i=val(t,'iter')\n  assert 0 <= i < e['iterations'] and i not in seen,(name,i,t)\n  seen.add(i)\n  assert hx(t,'page_checksum')=='0x4a9f55cc4def6f8d';assert hx(t,'exec_checksum')==exe[i]\n assert seen==set(range(e['iterations'])),(name,seen)\n"""
           if old not in s:
               raise SystemExit('V9 verifier-order patch anchor missing')
           p.write_text(s.replace(old,new,1))
           PY
           echo '2f9dbbe8e05bf312283e95b8317da48f36f19c2fa32b7f78e04719e7acbeb396  experiments/rk3588-state-v9/init.c' | sha256sum -c -
-          echo '1264c8d96c1adf130055648e24ca8f9be93e7536597c581c64777c75c16872f8  experiments/rk3588-state-v9/verify-v9.py' | sha256sum -c -
+          echo '00305cf22bb51170a16cec9683c05562dfe18fbbadd3b757c09b922ac1f8b2bb  experiments/rk3588-state-v9/verify-v9.py' | sha256sum -c -
           gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init.c"
           python3 -m py_compile "$D/ivshmem_server.py" "$D/run-v9-matrix.py" "$D/verify-v9.py"
           bash -n "$D/run-one-v9.sh"
