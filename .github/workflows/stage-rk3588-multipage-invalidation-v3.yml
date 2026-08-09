@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo '4bd9909774c0e64dab0fdb590b5b6f01247f1a934639f75056be39ca8f97e59f  experiments/rk3588-multipage-v3-src.tar.gz' | sha256sum -c -
+          echo '9975ce1f033eb2edc8ed2d7a4f43a922ad8c248da675b7732f1b2b146750c893  experiments/rk3588-multipage-v3-src.tar.gz' | sha256sum -c -
           rm -rf experiments/rk3588-multipage-v3
           mkdir -p experiments/rk3588-multipage-v3 /tmp/v3src
           tar -xzf experiments/rk3588-multipage-v3-src.tar.gz -C /tmp/v3src
