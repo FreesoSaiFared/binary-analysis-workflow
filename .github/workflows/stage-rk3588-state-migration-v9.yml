@@ -1,0 +1,147 @@
+name: Prove RK3588 real task-state migration v9
+
+on:
+  push:
+    branches:
+      - rk3588-v9-real-state
+    paths:
+      - 'experiments/rk3588-state-v9/**'
+      - '.github/workflows/stage-rk3588-state-migration-v9.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decode and verify exact V9 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rk3588-state-v9
+          base64 -d "$D/source.tar.gz.b64" > /tmp/v9-source.tar.gz
+          echo 'e8ab0f1f0f016cf5b636705c8167449ff2da90f6913ae425fef9c55629aa7cd3  /tmp/v9-source.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/v9-source.tar.gz -C "$D"
+          cat <<'EOF' | sha256sum -c -
+          2164de2cd03ba391017068f685dea24ba42c7426fe2d1ab6c71a1fb3746d8d84  experiments/rk3588-state-v9/rkmesh_v9.c
+          b265c49f2e8f6e5082beb78239059306e20ff885cc1d43577e2e8b91dfac5a1b  experiments/rk3588-state-v9/init.c
+          eb1105f57945b8726cd312772e5d83e81c452d7df96de72535e220d41793fcdf  experiments/rk3588-state-v9/run-one-v9.sh
+          7a6ce85ed202670198286de813d1a4dd0612051fb8477138cdcad0b533cf07a3  experiments/rk3588-state-v9/run-v9-matrix.py
+          ad6a873583a099f990f5590e1bd91a64bca09dcb0e9549922c2f67e35b929c0a  experiments/rk3588-state-v9/verify-v9.py
+          c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  experiments/rk3588-state-v9/ivshmem_server.py
+          34052174b58fa5b8963b9a1db02128c0bc21f2427b7ae70745670a63c8d5d2ad  experiments/rk3588-state-v9/Makefile
+          f6e96579ced1b2afa8ca1d58717ecb207fc3958a112cbbfac872e2b414e57679  experiments/rk3588-state-v9/EXPECTED_STATE_CHECKSUMS.txt
+          EOF
+          gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init.c"
+          python3 -m py_compile "$D/ivshmem_server.py" "$D/run-v9-matrix.py" "$D/verify-v9.py"
+          bash -n "$D/run-one-v9.sh"
+
+      - name: Cross-build ARM64 guest and portable runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf out
+          mkdir -p out
+          docker run --rm --privileged -v "$PWD:/work" debian:trixie bash -lc '
+            set -euo pipefail
+            dpkg --add-architecture arm64
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+              qemu-system-arm gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
+              cpio ca-certificates xz-utils make file
+            cd /tmp
+            kp=$(apt-cache depends linux-image-arm64:arm64 | awk "/Depends: linux-image-[0-9]/{print \$2;exit}")
+            test -n "$kp"
+            kb=${kp%%:*}
+            ver=${kb#linux-image-}
+            apt-get download "$kp"
+            kdeb=$(find /tmp -maxdepth 1 -name "${kb}_*_arm64.deb" | head -1)
+            test -n "$kdeb"
+            dpkg-deb -x "$kdeb" /tmp/kernel
+            hp="linux-headers-${ver}:arm64"
+            apt-get download "$hp"
+            hb=${hp%%:*}
+            hdeb=$(find /tmp -maxdepth 1 -name "${hb}_*_arm64.deb" | head -1)
+            test -n "$hdeb"
+            common="linux-headers-${ver%-arm64}-common"
+            kbuild="linux-kbuild-${ver%-arm64}"
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$common" "$kbuild"
+            dpkg-deb -x "$hdeb" /
+            hdr="/usr/src/linux-headers-${ver}"
+            test -d "$hdr"
+            make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/experiments/rk3588-state-v9 modules
+            aarch64-linux-gnu-gcc -O2 -static -s -Wall -Wextra -Werror /work/experiments/rk3588-state-v9/init.c -o /work/out/init
+            mkdir -p /work/out/runtime/bin /work/out/runtime/lib /work/out/runtime/lib64
+            cp /usr/bin/qemu-system-aarch64 /work/out/runtime/bin/
+            ldd /usr/bin/qemu-system-aarch64 | awk "{for(i=1;i<=NF;i++)if(\$i~/^\//)print \$i}" | sort -u >/tmp/libs
+            while read -r lib; do mkdir -p "/work/out/runtime$(dirname "$lib")"; cp -L "$lib" "/work/out/runtime$lib"; done </tmp/libs
+            loader=$(ldd /usr/bin/qemu-system-aarch64 | awk "/ld-linux/{for(i=1;i<=NF;i++)if(\$i~/^\//){print \$i;exit}}")
+            test -n "$loader"
+            mkdir -p "/work/out/runtime$(dirname "$loader")"
+            cp -L "$loader" "/work/out/runtime$loader"
+            mkdir -p /work/out/guest/root/{proc,sys,dev}
+            kernel=$(find /tmp/kernel/boot -maxdepth 1 -name "vmlinuz-*" | head -1)
+            test -n "$kernel"
+            cp "$kernel" /work/out/guest/Image
+            cp /work/out/init /work/out/guest/root/init
+            cp /work/experiments/rk3588-state-v9/rkmesh_v9.ko /work/out/guest/root/rkmesh_v9.ko
+            cd /work/out/guest/root
+            find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > /work/out/guest/initramfs.cpio.gz
+            /work/out/runtime/lib64/ld-linux-x86-64.so.2 --library-path /work/out/runtime/lib/x86_64-linux-gnu:/work/out/runtime/usr/lib/x86_64-linux-gnu /work/out/runtime/bin/qemu-system-aarch64 --version > /work/out/QEMU_VERSION.txt
+            printf "%s\n" "$ver" > /work/out/KERNEL_VERSION.txt
+          '
+          D=experiments/rk3588-state-v9
+          cp "$D/ivshmem_server.py" out/
+          cp "$D/run-one-v9.sh" out/
+          cp "$D/run-v9-matrix.py" out/
+          cp "$D/verify-v9.py" out/
+          cp "$D/EXPECTED_STATE_CHECKSUMS.txt" out/
+          cp "$D/rkmesh_v9.c" out/rkmesh_v9-source.c
+          cp "$D/init.c" out/init-source.c
+          chmod +x out/ivshmem_server.py out/run-one-v9.sh out/run-v9-matrix.py out/verify-v9.py
+
+      - name: Run four fresh four-guest real-state policy experiments
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./out/run-v9-matrix.py
+          ./out/verify-v9.py | tee out/V9_VERIFY.txt
+          find out/results -type f -name iv.bin -delete
+          find out/results -type s -delete || true
+          (cd out && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+      - name: Package passing V9 runtime
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C out -czf rk3588-state-migration-v9.tar.gz .
+          sha256sum rk3588-state-migration-v9.tar.gz | tee rk3588-state-migration-v9.tar.gz.sha256
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rk3588-state-migration-v9
+          path: |
+            rk3588-state-migration-v9.tar.gz
+            rk3588-state-migration-v9.tar.gz.sha256
+            out/QEMU_VERSION.txt
+            out/KERNEL_VERSION.txt
+            out/SHA256SUMS
+            out/V9_RESULT.json
+            out/V9_VERIFY.txt
+            out/results/**
+            experiments/rk3588-state-v9/rkmesh_v9.c
+            experiments/rk3588-state-v9/init.c
+            experiments/rk3588-state-v9/run-one-v9.sh
+            experiments/rk3588-state-v9/run-v9-matrix.py
+            experiments/rk3588-state-v9/verify-v9.py
+            experiments/rk3588-state-v9/ivshmem_server.py
+            experiments/rk3588-state-v9/Makefile
+            experiments/rk3588-state-v9/EXPECTED_STATE_CHECKSUMS.txt
+          if-no-files-found: warn
+          retention-days: 2
+          compression-level: 0
