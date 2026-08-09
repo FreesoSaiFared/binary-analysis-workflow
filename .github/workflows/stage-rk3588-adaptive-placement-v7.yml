@@ -27,7 +27,7 @@ jobs:
           59519ef29e4424857c6d98a76409474ebe19cf086db320d2a6b30f9a791b2015  init.c
           954746c7116132793c24297de7907341c4a671d1d3cba883f21af8a3d7f3c6a1  run-one-v7.sh
           4951c5d8be7213af2d53cc9c924468b4ae653f01a1b2eef09cc3c0761e2016dd  run-v7-matrix.py
-          8bd7728b99f5daee27358457ab67e405157a88bde0066ecb90591a54504dd2b9  verify-v7.py
+          fd2f29544d8c09b49b6b8703ef220a360e0f47b0b3f2d73a382bffb46f4642c2  verify-v7.py
           c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  ivshmem_server.py
           acb3d6d3e5a898915c9b2e2996ba3abe31e0346aed1f40e06d450aa53ee17c55  Makefile
           ad3ad9c74dede27b8df735217571c385eff36420f8420de9286a6006f568ee38  EXPECTED_TASK_CHECKSUM.txt
