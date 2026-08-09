@@ -1,0 +1,96 @@
+name: Prove RK3588 multi-page invalidation v3
+
+on:
+  push:
+    paths:
+      - '.github/workflows/stage-rk3588-multipage-invalidation-v3.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct v3 source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/src.b64 <<'B64'
+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
+B64
+          base64 -d /tmp/src.b64 > /tmp/src.tar.gz
+          echo 'adf31f5ee9a8e6006b606715688bee3a4bc6c04adb3bc9f61a7f7e2dc7e779da  /tmp/src.tar.gz' | sha256sum -c -
+          rm -rf experiments/rk3588-multipage-v3
+          mkdir -p experiments
+          tar -xzf /tmp/src.tar.gz -C /tmp
+          mv /tmp/rk3588-multipage-v3-src experiments/rk3588-multipage-v3
+      - name: Cross-build ARM64 guest, module, and portable QEMU runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf out
+          mkdir -p out
+          docker run --rm --privileged -v "$PWD:/work" debian:trixie bash -lc '
+            set -euo pipefail
+            dpkg --add-architecture arm64
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-system-arm gcc-aarch64-linux-gnu libc6-dev-arm64-cross cpio ca-certificates xz-utils make file
+            cd /tmp
+            kp=$(apt-cache depends linux-image-arm64:arm64 | awk "/Depends: linux-image-[0-9]/{print \$2;exit}")
+            test -n "$kp"; kb=${kp%%:*}; ver=${kb#linux-image-}; apt-get download "$kp"
+            kdeb=$(find /tmp -maxdepth 1 -name "${kb}_*_arm64.deb" | head -1); test -n "$kdeb"; dpkg-deb -x "$kdeb" /tmp/kernel
+            hp="linux-headers-${ver}:arm64"; apt-get download "$hp"; hb=${hp%%:*}; hdeb=$(find /tmp -maxdepth 1 -name "${hb}_*_arm64.deb" | head -1); test -n "$hdeb"
+            common="linux-headers-${ver%-arm64}-common"; kbuild="linux-kbuild-${ver%-arm64}"; DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$common" "$kbuild"; dpkg-deb -x "$hdeb" /
+            hdr="/usr/src/linux-headers-${ver}"; test -d "$hdr"
+            make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/experiments/rk3588-multipage-v3 modules
+            aarch64-linux-gnu-gcc -O2 -static -s -Wall -Wextra -Werror -pthread /work/experiments/rk3588-multipage-v3/init.c -o /work/out/init
+            mkdir -p /work/out/runtime/bin /work/out/runtime/lib /work/out/runtime/lib64
+            cp /usr/bin/qemu-system-aarch64 /work/out/runtime/bin/
+            ldd /usr/bin/qemu-system-aarch64 | awk "{for(i=1;i<=NF;i++)if(\$i~/^\//)print \$i}" | sort -u >/tmp/libs
+            while read -r lib; do mkdir -p "/work/out/runtime$(dirname "$lib")"; cp -L "$lib" "/work/out/runtime$lib"; done </tmp/libs
+            loader=$(ldd /usr/bin/qemu-system-aarch64 | awk "/ld-linux/{for(i=1;i<=NF;i++)if(\$i~/^\//){print \$i;exit}}")
+            test -n "$loader"; mkdir -p "/work/out/runtime$(dirname "$loader")"; cp -L "$loader" "/work/out/runtime$loader"
+            mkdir -p /work/out/guest/root/{proc,sys,dev}
+            kernel=$(find /tmp/kernel/boot -maxdepth 1 -name "vmlinuz-*" | head -1); test -n "$kernel"; cp "$kernel" /work/out/guest/Image
+            cp /work/out/init /work/out/guest/root/init; cp /work/experiments/rk3588-multipage-v3/rkmesh_pages.ko /work/out/guest/root/rkmesh_pages.ko
+            cd /work/out/guest/root; find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > /work/out/guest/initramfs.cpio.gz
+            /work/out/runtime/lib64/ld-linux-x86-64.so.2 --library-path /work/out/runtime/lib/x86_64-linux-gnu:/work/out/runtime/usr/lib/x86_64-linux-gnu /work/out/runtime/bin/qemu-system-aarch64 --version > /work/out/QEMU_VERSION.txt
+            printf "%s\n" "$ver" > /work/out/KERNEL_VERSION.txt
+          '
+          cp experiments/rk3588-multipage-v3/ivshmem_server.py out/
+          cp experiments/rk3588-multipage-v3/run-four-v3.sh out/
+          cp experiments/rk3588-multipage-v3/rkmesh_pages.c out/
+          cp experiments/rk3588-multipage-v3/init.c out/init-source.c
+          chmod +x out/ivshmem_server.py out/run-four-v3.sh
+          (cd out && find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+      - name: Run strict four-guest multipage invalidation proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./out/run-four-v3.sh
+      - name: Package passing runtime
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C out -czf rk3588-multipage-invalidation-v3.tar.gz .
+          sha256sum rk3588-multipage-invalidation-v3.tar.gz | tee rk3588-multipage-invalidation-v3.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rk3588-multipage-invalidation-v3
+          path: |
+            rk3588-multipage-invalidation-v3.tar.gz
+            rk3588-multipage-invalidation-v3.tar.gz.sha256
+            out/QEMU_VERSION.txt
+            out/KERNEL_VERSION.txt
+            out/SHA256SUMS
+            out/run/RESULT.txt
+            out/run/server.log
+            out/run/node*.log
+            experiments/rk3588-multipage-v3/**
+          if-no-files-found: warn
+          retention-days: 2
+          compression-level: 0
