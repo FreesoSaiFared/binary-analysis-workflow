@@ -22,7 +22,7 @@ jobs:
           cd experiments/rk3588-concurrent-v4
           cat <<'EOF' | sha256sum -c -
           5a53582e7ef1eac1e74dc8cbd8f8568c7e0f3352ac1c5bb2d2ec81a73b41b858  Makefile
-          5c388c8750e03ce7d52ce5ffa409ec2c867ae139e78903be06f1e41df5de3995  init.c
+          f71cdc5465c8f8ecb30415f013515cf5bdb6091e4bfb99444b0e4f188211997c  init.c
           c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  ivshmem_server.py
           23c0d048a13447adeb422e5e010b3de7baf5d25fa580c240b8cf252219fd55ab  rkmesh_concurrent.c
           f487aa329c3dc0ce8ba4980f3afc94c75a9a6bebd9e5cbbb09805555dcb2e5ae  run-four-v4.sh
