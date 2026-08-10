@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Decode and verify exact V9 source
+      - name: Decode, patch barrier race, and verify exact V9 source
         shell: bash
         run: |
           set -euo pipefail
@@ -53,8 +53,38 @@ jobs:
           if old not in s:
               raise SystemExit('V9 verifier-order patch anchor missing')
           p.write_text(s.replace(old,new,1))
+
+          p=Path('experiments/rk3588-state-v9/rkmesh_v9.c')
+          s=p.read_text()
+          replacements=[
+            ('#define STATE_LOCAL_HITS_BASE 0x248\n#define SLOT_BASE        0x300', '#define STATE_LOCAL_HITS_BASE 0x248\n#define BARRIER_BASE     0x260\n#define SLOT_BASE        0x300'),
+            ('#define RK_STATE_COMMIT  _IOW(RK_IOC_MAGIC,24,struct rk_state_op)', '#define RK_STATE_COMMIT  _IOW(RK_IOC_MAGIC,24,struct rk_state_op)\n#define RK_BARRIER       _IOW(RK_IOC_MAGIC,25,__u32)'),
+            ('case RK_WAIT_STEP:if(copy_from_user(&v,(void __user*)arg,sizeof(v)))return -EFAULT;for(i=0;i<10000;i++){if(readl(d->bar2+STEP_OFF)>=v)return 0;msleep(1);}return -ETIMEDOUT;', 'case RK_BARRIER:if(copy_from_user(&v,(void __user*)arg,sizeof(v)))return -EFAULT;writel(v,d->bar2+BARRIER_BASE+d->id*4);wmb();for(i=0;i<10000;i++){u32 n;for(n=0;n<NODES;n++)if(readl(d->bar2+BARRIER_BASE+n*4)<v)break;if(n==NODES)return 0;msleep(1);}pr_err("RKMESH_V9_BARRIER_TIMEOUT id=%u phase=%u a0=%u a1=%u a2=%u a3=%u\\n",d->id,v,readl(d->bar2+BARRIER_BASE),readl(d->bar2+BARRIER_BASE+4),readl(d->bar2+BARRIER_BASE+8),readl(d->bar2+BARRIER_BASE+12));return -ETIMEDOUT;\n    case RK_WAIT_STEP:if(copy_from_user(&v,(void __user*)arg,sizeof(v)))return -EFAULT;for(i=0;i<10000;i++){if(readl(d->bar2+STEP_OFF)>=v)return 0;msleep(1);}return -ETIMEDOUT;'),
+            ('for(i=0;i<NODES;i++){writel(0,d->bar2+LOCAL_HITS_BASE+i*4);writel(0,d->bar2+STATE_LOCAL_HITS_BASE+i*4);}', 'for(i=0;i<NODES;i++){writel(0,d->bar2+LOCAL_HITS_BASE+i*4);writel(0,d->bar2+STATE_LOCAL_HITS_BASE+i*4);writel(0,d->bar2+BARRIER_BASE+i*4);}')
+          ]
+          for old,new in replacements:
+              if old not in s:
+                  raise SystemExit('V9 kernel barrier patch anchor missing')
+              s=s.replace(old,new,1)
+          p.write_text(s)
+
+          p=Path('experiments/rk3588-state-v9/init.c')
+          s=p.read_text()
+          replacements=[
+            ('#define RK_STATE_COMMIT _IOW(RK_IOC_MAGIC,24,struct rk_state_op)', '#define RK_STATE_COMMIT _IOW(RK_IOC_MAGIC,24,struct rk_state_op)\n#define RK_BARRIER _IOW(RK_IOC_MAGIC,25,uint32_t)'),
+            ('static void wait_step(uint32_t s){if(ioctl(fd,RK_WAIT_STEP,&s))die("wait step");}static void set_step(uint32_t s){if(ioctl(fd,RK_SET_STEP,&s))die("set step");}static void get_status(struct rk_status*s){if(ioctl(fd,RK_GET_STATUS,s))die("status");}', 'static void barrier(uint32_t phase){if(ioctl(fd,RK_BARRIER,&phase))die("barrier");}static void get_status(struct rk_status*s){if(ioctl(fd,RK_GET_STATUS,s))die("status");}'),
+            ('static void perform_mutation(unsigned config,int prev,unsigned iter){static const unsigned p1[1]={1};static const unsigned p59[2]={5,9};if(prev<0){if(my_id==0){mutate_pages(p1,1,config,iter);set_step(100+iter*10+1);}return;}if((unsigned)prev==config){if(my_id==0)set_step(100+iter*10+1);return;}if(config==1&&my_id==3){mutate_pages(p59,2,config,iter);set_step(100+iter*10+1);}if(config==0&&my_id==1){mutate_pages(p59,2,config,iter);set_step(100+iter*10+1);}}', 'static void perform_mutation(unsigned config,int prev,unsigned iter){static const unsigned p1[1]={1};static const unsigned p59[2]={5,9};if(prev<0){if(my_id==0)mutate_pages(p1,1,config,iter);return;}if((unsigned)prev==config)return;if(config==1&&my_id==3)mutate_pages(p59,2,config,iter);if(config==0&&my_id==1)mutate_pages(p59,2,config,iter);}'),
+            ('for(iter=0;iter<iters;iter++){uint32_t start=100+iter*10;uint64_t mut_delta,page_delta,state_delta;uint32_t hit_delta,state_hit_delta,state_xfer_delta,expect_page,expect_state;migrated=0;config=config_for(mode,iter);if(my_id==0){get_status(&before_mut);if(before_mut.state_owner!=current||before_mut.state_gen!=iter||before_mut.state_checksum!=expected_state[iter])_exit(100);set_step(start);}else wait_step(start);perform_mutation(config,prev,iter);wait_step(start+1);', 'for(iter=0;iter<iters;iter++){uint32_t start=100+iter*10;uint64_t mut_delta,page_delta,state_delta;uint32_t hit_delta,state_hit_delta,state_xfer_delta,expect_page,expect_state;migrated=0;config=config_for(mode,iter);barrier(start);if(my_id==0){get_status(&before_mut);if(before_mut.state_owner!=current||before_mut.state_gen!=iter||before_mut.state_checksum!=expected_state[iter])_exit(100);}perform_mutation(config,prev,iter);barrier(start+1);'),
+            ('target=current;if(ioctl(fd,RK_SET_TARGET,&target))die("set target");printf("RKMESH_V9_DECISION mode=%s iter=%u config=%c current_before=%u best=%u current_after=%u c0=%u c1=%u c2=%u c3=%u advantage=%u credit=%u migrated=%u migrations=%u mutation_bytes=%llu\\n",mode_name(mode),iter,config?\'B\':\'A\',current_before,best,current,costs[0],costs[1],costs[2],costs[3],advantage,credit,migrated,migrations,(unsigned long long)mut_delta);set_step(start+2);\n  }else wait_step(start+2);get_status(&after_mut);target=after_mut.task_target?after_mut.task_target-1:99;if(target>=4)_exit(102);if(my_id==target){run_task(mode,iter,target);set_step(start+3);}wait_step(start+3);', 'target=current;if(ioctl(fd,RK_SET_TARGET,&target))die("set target");printf("RKMESH_V9_DECISION mode=%s iter=%u config=%c current_before=%u best=%u current_after=%u c0=%u c1=%u c2=%u c3=%u advantage=%u credit=%u migrated=%u migrations=%u mutation_bytes=%llu\\n",mode_name(mode),iter,config?\'B\':\'A\',current_before,best,current,costs[0],costs[1],costs[2],costs[3],advantage,credit,migrated,migrations,(unsigned long long)mut_delta);\n  }barrier(start+2);get_status(&after_mut);target=after_mut.task_target?after_mut.task_target-1:99;if(target>=4)_exit(102);if(my_id==target){printf("RKMESH_V9_TASK_BEGIN id=%u iter=%u target=%u state_owner=%u state_gen=%u state_checksum=0x%016llx\\n",my_id,iter,target,after_mut.state_owner,after_mut.state_gen,(unsigned long long)after_mut.state_checksum);run_task(mode,iter,target);}barrier(start+3);')
+          ]
+          for old,new in replacements:
+              if old not in s:
+                  raise SystemExit('V9 userspace barrier patch anchor missing')
+              s=s.replace(old,new,1)
+          p.write_text(s)
           PY
-          echo '2f9dbbe8e05bf312283e95b8317da48f36f19c2fa32b7f78e04719e7acbeb396  experiments/rk3588-state-v9/init.c' | sha256sum -c -
+          echo '3cebe5338a5f549a0475495a2a42c1390e93b4fd550c39045ace4d24fc073633  experiments/rk3588-state-v9/rkmesh_v9.c' | sha256sum -c -
+          echo '758571c15cfc02ea9ad394645eacf235225c6e009f9fb0213fa5a4e5cd0e02f5  experiments/rk3588-state-v9/init.c' | sha256sum -c -
           echo '00305cf22bb51170a16cec9683c05562dfe18fbbadd3b757c09b922ac1f8b2bb  experiments/rk3588-state-v9/verify-v9.py' | sha256sum -c -
           gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init.c"
           python3 -m py_compile "$D/ivshmem_server.py" "$D/run-v9-matrix.py" "$D/verify-v9.py"
@@ -124,14 +154,27 @@ jobs:
           cp "$D/init.c" out/init-source.c
           chmod +x out/ivshmem_server.py out/run-one-v9.sh out/run-v9-matrix.py out/verify-v9.py
 
-      - name: Run four fresh four-guest real-state policy experiments
+      - name: Gate pos_hyst liveness across 20 fresh four-guest boots, then run full matrix
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf out/reliability
+          mkdir -p out/reliability
+          for i in $(seq -w 1 20); do
+            root="$PWD/out/reliability/run-$i"
+            RUN_ROOT="$root" ./out/run-one-v9.sh 2
+            summary="$root/pos_hyst/summary.txt"
+            grep -q 'mode=pos_hyst iterations=7 migrations=1 final_host=1 task_page_bytes=73728 state_transfer_bytes=8192 state_xfers=1 measured_total=81920 mutation_control_bytes=12288' "$summary"
+            grep -q 'final_state_gen=7 final_state_checksum=0xa1d675e2b67b913c' "$summary"
+            test "$(wc -l < "$root/pos_hyst/tasks.txt")" -eq 7
+            test "$(wc -l < "$root/pos_hyst/state-transfers.txt")" -eq 1
+            echo "RKMESH_V9_POS_HYST_RELIABILITY_PASS run=$i"
+          done | tee out/POS_HYST_RELIABILITY.txt
+          test "$(grep -c '^RKMESH_V9_POS_HYST_RELIABILITY_PASS ' out/POS_HYST_RELIABILITY.txt)" -eq 20
           ./out/run-v9-matrix.py
           ./out/verify-v9.py | tee out/V9_VERIFY.txt
-          find out/results -type f -name iv.bin -delete
-          find out/results -type s -delete || true
+          find out/reliability out/results -type f -name iv.bin -delete
+          find out/reliability out/results -type s -delete || true
           (cd out && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
       - name: Package passing V9 runtime
@@ -152,8 +195,10 @@ jobs:
             out/QEMU_VERSION.txt
             out/KERNEL_VERSION.txt
             out/SHA256SUMS
+            out/POS_HYST_RELIABILITY.txt
             out/V9_RESULT.json
             out/V9_VERIFY.txt
+            out/reliability/**
             out/results/**
             experiments/rk3588-state-v9/rkmesh_v9.c
             experiments/rk3588-state-v9/init.c
