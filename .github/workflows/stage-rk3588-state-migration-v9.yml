@@ -82,10 +82,15 @@ jobs:
               if old not in s:
                   raise SystemExit('V9 userspace liveness patch anchor missing')
               s=s.replace(old,new,1)
+          old='config=config_for(mode,iter);barrier(start);if(my_id==0){get_status(&before_mut);if(before_mut.state_owner!=current||before_mut.state_gen!=iter||before_mut.state_checksum!=expected_state[iter])_exit(100);}perform_mutation(config,prev,iter);barrier(start+1);'
+          new='config=config_for(mode,iter);if(my_id==0){get_status(&before_mut);if(before_mut.state_owner!=current||before_mut.state_gen!=iter||before_mut.state_checksum!=expected_state[iter])_exit(100);}barrier(start);perform_mutation(config,prev,iter);barrier(start+1);'
+          if old not in s:
+              raise SystemExit('V9 mutation-baseline ordering patch anchor missing')
+          s=s.replace(old,new,1)
           p.write_text(s)
           PY
           echo '3cebe5338a5f549a0475495a2a42c1390e93b4fd550c39045ace4d24fc073633  experiments/rk3588-state-v9/rkmesh_v9.c' | sha256sum -c -
-          echo 'f26d9b1361321b4ac7477ebe64adb8f2ddc0f7c130bcdb4e8f7e6cdceb5ee62e  experiments/rk3588-state-v9/init.c' | sha256sum -c -
+          echo 'ae534b43fa152d7bc907fc183ef58636ecded72f3579e5f2afcafa4a3d710c5a  experiments/rk3588-state-v9/init.c' | sha256sum -c -
           echo '00305cf22bb51170a16cec9683c05562dfe18fbbadd3b757c09b922ac1f8b2bb  experiments/rk3588-state-v9/verify-v9.py' | sha256sum -c -
           gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init.c"
           python3 -m py_compile "$D/ivshmem_server.py" "$D/run-v9-matrix.py" "$D/verify-v9.py"
