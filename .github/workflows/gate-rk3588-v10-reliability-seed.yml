@@ -1,0 +1,94 @@
+name: Gate exact passing RK3588 V10 runtime across 40 fresh boots
+
+on:
+  push:
+    branches:
+      - rk3588-v10-sleeping-handoff
+    paths:
+      - '.github/workflows/gate-rk3588-v10-reliability-seed.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  reliability:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Admit exact passing V10 runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf seed out
+          mkdir -p seed out
+          gh run download 31492190032 -R "$GITHUB_REPOSITORY" -n rk3588-sleeping-handoff-v10 -D seed
+          echo '1c7f1e38a4e8346187bb55f2ac03191faee56c7b80fd21faf75e5a8922db48b9  seed/rk3588-sleeping-handoff-v10.tar.gz' | sha256sum -c -
+          tar -xzf seed/rk3588-sleeping-handoff-v10.tar.gz -C out
+          grep -q '^RKMESH_QEMU_4ARM64_SLEEPING_HANDOFF_V10_PASS$' out/V10_VERIFY.txt
+          cat <<'EOF' | sha256sum -c -
+          3374f2a557f22e24f64d03182403fe1bb36d134c85467ec19ed85b3c7478c2f2  out/rkmesh_v10-source.c
+          8d20a34b8e246fb5a6c57ffb6ae7d5c1406d2c3d05e4e42ca5b4b39115ae5c1f  out/init-source.c
+          daddfec029a7bb499197daafc52af1682033ecdcc20fac4ad975686968e58b59  out/run-one-v10.sh
+          c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  out/ivshmem_server.py
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('out/run-one-v10.sh')
+          s=p.read_text()
+          old='S="$R/iv.sock"; M="$R/iv.bin"; python3 "$H/ivshmem_server.py" -S "$S" -m "$M" --peers 4 >"$R/server.log" 2>&1 & srv=$!; trap \'kill $srv 2>/dev/null || true; jobs -pr | xargs -r kill 2>/dev/null || true\' EXIT'
+          new='S="/tmp/rkv10-${GITHUB_RUN_ID:-$$}-${RANDOM}.sock"; M="$R/iv.bin"; rm -f "$S"; python3 "$H/ivshmem_server.py" -S "$S" -m "$M" --peers 4 >"$R/server.log" 2>&1 & srv=$!; trap \'kill $srv 2>/dev/null || true; jobs -pr | xargs -r kill 2>/dev/null || true; rm -f "$S"\' EXIT'
+          if old not in s: raise SystemExit('short-socket patch anchor absent')
+          p.write_text(s.replace(old,new,1))
+          PY
+          echo '570e955cbb5ca5953d3e9cdfadcec1a4733aa5434d3069c23c25d0a0f76ded84  out/run-one-v10.sh' | sha256sum -c -
+          chmod +x out/run-one-v10.sh out/ivshmem_server.py
+          rm -rf out/results
+      - name: Gate 20 migrating sleeps and 20 stay-local controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf out/reliability && mkdir -p out/reliability
+          : > out/V10_RELIABILITY.txt
+          for i in $(seq -w 1 20); do
+            root="$PWD/out/reliability/migrate-$i"
+            RUN_ROOT="$root" ./out/run-one-v10.sh 0 >/dev/null
+            e="$root/migrate_sleep/events.txt"
+            grep -q 'RKMESH_QEMU_4ARM64_V10_CASE_PASS mode=migrate_sleep' "$root/migrate_sleep/summary.txt"
+            grep -q 'mode=migrate_sleep owner=1 gen=1 state_xfers=1 state_bytes=8192 waits=1 wakes=1 stale=1 old_rejects=1 checksum=0x0602e7fe82ac09b0' "$e"
+            test "$(grep -c 'RKMESH_V10_STATE_TRANSFER' "$e")" -eq 1
+            test "$(grep -c 'RKMESH_V10_STALE_WAKE_IGNORED' "$e")" -eq 1
+            test "$(grep -c 'RKMESH_V10_VALID_WAKE' "$e")" -eq 1
+            test "$(grep -c 'RKMESH_V10_OLD_HOST_NEGATIVE_PASS' "$e")" -eq 1
+            echo "RKMESH_V10_MIGRATE_RELIABILITY_PASS run=$i" | tee -a out/V10_RELIABILITY.txt
+          done
+          for i in $(seq -w 1 20); do
+            root="$PWD/out/reliability/stay-$i"
+            RUN_ROOT="$root" ./out/run-one-v10.sh 1 >/dev/null
+            e="$root/stay_local/events.txt"
+            grep -q 'RKMESH_QEMU_4ARM64_V10_CASE_PASS mode=stay_local' "$root/stay_local/summary.txt"
+            grep -q 'mode=stay_local owner=0 gen=1 state_xfers=0 state_bytes=0 waits=0 wakes=0 stale=0 old_rejects=0 checksum=0x0602e7fe82ac09b0' "$e"
+            ! grep -q 'RKMESH_V10_STATE_TRANSFER' "$e"
+            echo "RKMESH_V10_STAY_RELIABILITY_PASS run=$i" | tee -a out/V10_RELIABILITY.txt
+          done
+          test "$(grep -c '^RKMESH_V10_MIGRATE_RELIABILITY_PASS ' out/V10_RELIABILITY.txt)" -eq 20
+          test "$(grep -c '^RKMESH_V10_STAY_RELIABILITY_PASS ' out/V10_RELIABILITY.txt)" -eq 20
+          echo RKMESH_QEMU_4ARM64_SLEEPING_HANDOFF_V10_RELIABILITY_PASS | tee out/V10_RELIABILITY_VERIFY.txt
+          find out/reliability -type f -name iv.bin -delete
+          find out/reliability -type s -delete || true
+          (cd out && find . -type f ! -name SHA256SUMS_RELIABILITY -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS_RELIABILITY)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rk3588-v10-reliability-exact-runtime
+          path: |
+            out/V10_SOURCE_SHA256.txt
+            out/V10_RELIABILITY.txt
+            out/V10_RELIABILITY_VERIFY.txt
+            out/SHA256SUMS_RELIABILITY
+            out/reliability/**
+          if-no-files-found: warn
+          retention-days: 2
+          compression-level: 0
