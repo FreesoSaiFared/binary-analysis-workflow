@@ -1,11 +1,12 @@
-name: Prove RK3588 generation-bound execution wake v10 chunked
+name: Prove RK3588 generation-bound execution wake v10 fix1
 
 on:
   push:
     branches:
-      - rk3588-v10-exec-wake
+      - rk3588-v10-exec-wake-fix1
     paths:
       - 'experiments/rk3588-exec-wake-v10/source-v10.part-*'
+      - 'experiments/rk3588-exec-wake-v10/verify-v10-fix1.py'
       - '.github/workflows/stage-rk3588-exec-wake-v10-chunked.yml'
 
 permissions:
@@ -17,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Assemble, decode and verify V10 source
+      - name: Assemble original source and apply verifier-only fix1
         shell: bash
         run: |
           set -euo pipefail
@@ -36,6 +37,8 @@ jobs:
           c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  experiments/rk3588-exec-wake-v10/ivshmem_server.py
           6c49ff3ad82186e89f883ba702bb5484403be5371e4f752ab98341275e8dac10  experiments/rk3588-exec-wake-v10/Makefile
           SUMS
+          cp "$D/verify-v10-fix1.py" "$D/verify-v10.py"
+          echo '1667ecb346ebb5385be4ee687ac66857561bcaa724a376d0b7f2107780bedd2b  experiments/rk3588-exec-wake-v10/verify-v10.py' | sha256sum -c -
           gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init_v10.c"
           python3 -m py_compile "$D/ivshmem_server.py" "$D/run-v10-matrix.py" "$D/verify-v10.py"
           bash -n "$D/run-one-v10.sh"
@@ -101,9 +104,10 @@ jobs:
           cp "$D/verify-v10.py" out/
           cp "$D/rkmesh_v10.c" out/rkmesh_v10-source.c
           cp "$D/init_v10.c" out/init_v10-source.c
+          cp "$D/verify-v10-fix1.py" out/verify-v10-fix1-source.py
           chmod +x out/ivshmem_server.py out/run-one-v10.sh out/run-v10-matrix.py out/verify-v10.py
 
-      - name: Gate migration wake liveness across 20 fresh four-guest boots, then run matrix
+      - name: Gate 20 fresh migration boots and full matrix
         shell: bash
         run: |
           set -euo pipefail
@@ -115,10 +119,13 @@ jobs:
             summary="$root/migrate/summary.txt"
             grep -q 'mode=migrate iterations=7 migrations=1 final_host=1 task_page_bytes=73728 state_transfer_bytes=8192 state_xfers=1 measured_total=81920 mutation_control_bytes=12288' "$summary"
             grep -q 'final_state_gen=7 final_state_checksum=0xa1d675e2b67b913c exec_valid_wakes=1 exec_stale_wakes=1 old_host_excluded=1 exec_runs=1 doorbells=47 barrier_arrivals=112 parked0=3' "$summary"
-            test "$(grep -c 'RKMESH_V10_EXEC_WAKE_STALE_IGNORED id=1 expected_gen=2' "$root/migrate/node1.log")" -eq 1
-            test "$(grep -c 'RKMESH_V10_EXEC_WAKE_VALID id=1 gen=2 dest=1' "$root/migrate/node1.log")" -eq 1
-            test "$(grep -c 'RKMESH_V10_OLD_HOST_EXCLUDED id=0 gen=2 new_owner=1' "$root/migrate/node0.log")" -eq 1
-            test "$(grep -c 'RKMESH_V10_OLD_HOST_COMMIT_REJECTED id=0 iter=2 errno=1' "$root/migrate/node0.log")" -eq 1
+            for id in 0 1 2 3; do
+              test "$(grep -hF "RKMESH_V10_USER_READY id=$id " "$root"/migrate/node*.log | wc -l)" -eq 1
+            done
+            test "$(grep -hF 'RKMESH_V10_EXEC_WAKE_STALE_IGNORED id=1 expected_gen=2' "$root"/migrate/node*.log | wc -l)" -eq 1
+            test "$(grep -hF 'RKMESH_V10_EXEC_WAKE_VALID id=1 gen=2 dest=1' "$root"/migrate/node*.log | wc -l)" -eq 1
+            test "$(grep -hF 'RKMESH_V10_OLD_HOST_EXCLUDED id=0 gen=2 new_owner=1' "$root"/migrate/node*.log | wc -l)" -eq 1
+            test "$(grep -hF 'RKMESH_V10_OLD_HOST_COMMIT_REJECTED id=0 iter=2 errno=1' "$root"/migrate/node*.log | wc -l)" -eq 1
             echo "RKMESH_V10_MIGRATION_WAKE_RELIABILITY_PASS run=$i"
           done | tee out/MIGRATION_WAKE_RELIABILITY.txt
           test "$(grep -c '^RKMESH_V10_MIGRATION_WAKE_RELIABILITY_PASS ' out/MIGRATION_WAKE_RELIABILITY.txt)" -eq 20
@@ -139,7 +146,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rk3588-exec-wake-v10-chunked
+          name: rk3588-exec-wake-v10-fix1
           path: |
             rk3588-exec-wake-v10.tar.gz
             rk3588-exec-wake-v10.tar.gz.sha256
@@ -156,6 +163,8 @@ jobs:
             experiments/rk3588-exec-wake-v10/run-one-v10.sh
             experiments/rk3588-exec-wake-v10/run-v10-matrix.py
             experiments/rk3588-exec-wake-v10/verify-v10.py
+            experiments/rk3588-exec-wake-v10/verify-v10-fix1.py
+            experiments/rk3588-exec-wake-v10/VERIFY_FIX1.md
             experiments/rk3588-exec-wake-v10/ivshmem_server.py
             experiments/rk3588-exec-wake-v10/Makefile
           if-no-files-found: warn
