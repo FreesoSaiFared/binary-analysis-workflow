@@ -16,11 +16,18 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Admit V10 source and report hashes
+      - name: Verify pinned V10 source
         shell: bash
         run: |
           set -euo pipefail
           D=experiments/rk3588-v10-handoff
+          cat <<'EOF' | sha256sum -c -
+          3374f2a557f22e24f64d03182403fe1bb36d134c85467ec19ed85b3c7478c2f2  experiments/rk3588-v10-handoff/rkmesh_v10.c
+          8d20a34b8e246fb5a6c57ffb6ae7d5c1406d2c3d05e4e42ca5b4b39115ae5c1f  experiments/rk3588-v10-handoff/init.c
+          daddfec029a7bb499197daafc52af1682033ecdcc20fac4ad975686968e58b59  experiments/rk3588-v10-handoff/run-one-v10.sh
+          c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  experiments/rk3588-v10-handoff/ivshmem_server.py
+          6c49ff3ad82186e89f883ba702bb5484403be5371e4f752ab98341275e8dac10  experiments/rk3588-v10-handoff/Makefile
+          EOF
           sha256sum "$D"/rkmesh_v10.c "$D"/init.c "$D"/run-one-v10.sh "$D"/ivshmem_server.py "$D"/Makefile | tee /tmp/V10_SOURCE_SHA256.txt
           gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init.c"
           bash -n "$D/run-one-v10.sh"
@@ -62,17 +69,38 @@ jobs:
           cp experiments/rk3588-v10-handoff/rkmesh_v10.c out/rkmesh_v10-source.c
           cp experiments/rk3588-v10-handoff/init.c out/init-source.c
           chmod +x out/ivshmem_server.py out/run-one-v10.sh
-      - name: Execute both V10 discriminators
+      - name: Reliability gate across 40 fresh four-guest boots
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf out/reliability && mkdir -p out/reliability
+          : > out/V10_RELIABILITY.txt
+          for i in $(seq -w 1 20); do
+            root="$PWD/out/reliability/migrate-$i"
+            RUN_ROOT="$root" ./out/run-one-v10.sh 0 >/dev/null
+            grep -q 'RKMESH_QEMU_4ARM64_V10_CASE_PASS mode=migrate_sleep' "$root/migrate_sleep/summary.txt"
+            grep -q 'mode=migrate_sleep owner=1 gen=1 state_xfers=1 state_bytes=8192 waits=1 wakes=1 stale=1 old_rejects=1 checksum=0x0602e7fe82ac09b0' "$root/migrate_sleep/events.txt"
+            test "$(grep -c 'RKMESH_V10_STATE_TRANSFER' "$root/migrate_sleep/events.txt")" -eq 1
+            test "$(grep -c 'RKMESH_V10_STALE_WAKE_IGNORED' "$root/migrate_sleep/events.txt")" -eq 1
+            test "$(grep -c 'RKMESH_V10_VALID_WAKE' "$root/migrate_sleep/events.txt")" -eq 1
+            test "$(grep -c 'RKMESH_V10_OLD_HOST_NEGATIVE_PASS' "$root/migrate_sleep/events.txt")" -eq 1
+            echo "RKMESH_V10_MIGRATE_RELIABILITY_PASS run=$i" | tee -a out/V10_RELIABILITY.txt
+          done
+          for i in $(seq -w 1 20); do
+            root="$PWD/out/reliability/stay-$i"
+            RUN_ROOT="$root" ./out/run-one-v10.sh 1 >/dev/null
+            grep -q 'RKMESH_QEMU_4ARM64_V10_CASE_PASS mode=stay_local' "$root/stay_local/summary.txt"
+            grep -q 'mode=stay_local owner=0 gen=1 state_xfers=0 state_bytes=0 waits=0 wakes=0 stale=0 old_rejects=0 checksum=0x0602e7fe82ac09b0' "$root/stay_local/events.txt"
+            ! grep -q 'RKMESH_V10_STATE_TRANSFER' "$root/stay_local/events.txt"
+            echo "RKMESH_V10_STAY_RELIABILITY_PASS run=$i" | tee -a out/V10_RELIABILITY.txt
+          done
+          test "$(grep -c '^RKMESH_V10_MIGRATE_RELIABILITY_PASS ' out/V10_RELIABILITY.txt)" -eq 20
+          test "$(grep -c '^RKMESH_V10_STAY_RELIABILITY_PASS ' out/V10_RELIABILITY.txt)" -eq 20
           RUN_ROOT="$PWD/out/results" ./out/run-one-v10.sh 0
           RUN_ROOT="$PWD/out/results" ./out/run-one-v10.sh 1
-          grep -q 'RKMESH_QEMU_4ARM64_V10_CASE_PASS mode=migrate_sleep' out/results/migrate_sleep/summary.txt
-          grep -q 'RKMESH_QEMU_4ARM64_V10_CASE_PASS mode=stay_local' out/results/stay_local/summary.txt
-          echo RKMESH_QEMU_4ARM64_SLEEPING_HANDOFF_V10_PASS | tee out/V10_VERIFY.txt
-          find out/results -type f -name iv.bin -delete
-          find out/results -type s -delete || true
+          echo RKMESH_QEMU_4ARM64_SLEEPING_HANDOFF_V10_RELIABILITY_PASS | tee out/V10_VERIFY.txt
+          find out/reliability out/results -type f -name iv.bin -delete
+          find out/reliability out/results -type s -delete || true
           (cd out && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
       - name: Package V10 runtime
         if: success()
