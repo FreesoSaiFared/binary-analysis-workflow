@@ -1,0 +1,161 @@
+name: Prove RK3588 generation-bound execution wake v10
+
+on:
+  push:
+    branches:
+      - rk3588-v10-exec-wake
+    paths:
+      - 'experiments/rk3588-exec-wake-v10/**'
+      - '.github/workflows/stage-rk3588-exec-wake-v10.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decode and verify V10 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rk3588-exec-wake-v10
+          base64 -d "$D/source-v10.tar.gz.b64" > /tmp/source-v10.tar.gz
+          echo '62da918df790fa5155cfcf4efb36f7f142d6900d356e103d1fa70cd0f6a15ff0  /tmp/source-v10.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/source-v10.tar.gz -C "$D"
+          cat <<'SUMS' | sha256sum -c -
+          d2569685c5e680e4a94b6befe63dd7c49ae088d3757aee807c962231680fa4d6  experiments/rk3588-exec-wake-v10/rkmesh_v10.c
+          09ddd3da8c18342a53923687b84cb38713bcb242ddf024d03346e26bff9a5eef  experiments/rk3588-exec-wake-v10/init_v10.c
+          fd6869d7b2b65217b0aeff6d5e02c28a660e78cbb242154f74503afd537a48bb  experiments/rk3588-exec-wake-v10/run-one-v10.sh
+          6bc5fa896ee5adf64f50b054b4d825b648ed9fb1cef9d6ba9d690a1a58ba2ebe  experiments/rk3588-exec-wake-v10/run-v10-matrix.py
+          b40a4deb45aa9d11997c81422258c97698d6255da3cd7b01b326eb3baadd9ce1  experiments/rk3588-exec-wake-v10/verify-v10.py
+          c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  experiments/rk3588-exec-wake-v10/ivshmem_server.py
+          6c49ff3ad82186e89f883ba702bb5484403be5371e4f752ab98341275e8dac10  experiments/rk3588-exec-wake-v10/Makefile
+          SUMS
+          gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init_v10.c"
+          python3 -m py_compile "$D/ivshmem_server.py" "$D/run-v10-matrix.py" "$D/verify-v10.py"
+          bash -n "$D/run-one-v10.sh"
+
+      - name: Cross-build ARM64 guest and portable runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf out
+          mkdir -p out
+          docker run --rm --privileged -v "$PWD:/work" debian:trixie bash -lc '
+            set -euo pipefail
+            dpkg --add-architecture arm64
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+              qemu-system-arm gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
+              cpio ca-certificates xz-utils make file
+            cd /tmp
+            kp=$(apt-cache depends linux-image-arm64:arm64 | awk "/Depends: linux-image-[0-9]/{print \$2;exit}")
+            test -n "$kp"
+            kb=${kp%%:*}
+            ver=${kb#linux-image-}
+            apt-get download "$kp"
+            kdeb=$(find /tmp -maxdepth 1 -name "${kb}_*_arm64.deb" | head -1)
+            test -n "$kdeb"
+            dpkg-deb -x "$kdeb" /tmp/kernel
+            hp="linux-headers-${ver}:arm64"
+            apt-get download "$hp"
+            hb=${hp%%:*}
+            hdeb=$(find /tmp -maxdepth 1 -name "${hb}_*_arm64.deb" | head -1)
+            test -n "$hdeb"
+            common="linux-headers-${ver%-arm64}-common"
+            kbuild="linux-kbuild-${ver%-arm64}"
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$common" "$kbuild"
+            dpkg-deb -x "$hdeb" /
+            hdr="/usr/src/linux-headers-${ver}"
+            test -d "$hdr"
+            make -C "$hdr" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- M=/work/experiments/rk3588-exec-wake-v10 modules
+            aarch64-linux-gnu-gcc -O2 -static -s -Wall -Wextra -Werror /work/experiments/rk3588-exec-wake-v10/init_v10.c -o /work/out/init
+            mkdir -p /work/out/runtime/bin /work/out/runtime/lib /work/out/runtime/lib64
+            cp /usr/bin/qemu-system-aarch64 /work/out/runtime/bin/
+            ldd /usr/bin/qemu-system-aarch64 | awk "{for(i=1;i<=NF;i++)if(\$i~/^\//)print \$i}" | sort -u >/tmp/libs
+            while read -r lib; do mkdir -p "/work/out/runtime$(dirname "$lib")"; cp -L "$lib" "/work/out/runtime$lib"; done </tmp/libs
+            loader=$(ldd /usr/bin/qemu-system-aarch64 | awk "/ld-linux/{for(i=1;i<=NF;i++)if(\$i~/^\//){print \$i;exit}}")
+            test -n "$loader"
+            mkdir -p "/work/out/runtime$(dirname "$loader")"
+            cp -L "$loader" "/work/out/runtime$loader"
+            mkdir -p /work/out/guest/root/{proc,sys,dev}
+            kernel=$(find /tmp/kernel/boot -maxdepth 1 -name "vmlinuz-*" | head -1)
+            test -n "$kernel"
+            cp "$kernel" /work/out/guest/Image
+            cp /work/out/init /work/out/guest/root/init
+            cp /work/experiments/rk3588-exec-wake-v10/rkmesh_v10.ko /work/out/guest/root/rkmesh_v10.ko
+            cd /work/out/guest/root
+            find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > /work/out/guest/initramfs.cpio.gz
+            /work/out/runtime/lib64/ld-linux-x86-64.so.2 --library-path /work/out/runtime/lib/x86_64-linux-gnu:/work/out/runtime/usr/lib/x86_64-linux-gnu /work/out/runtime/bin/qemu-system-aarch64 --version > /work/out/QEMU_VERSION.txt
+            printf "%s\n" "$ver" > /work/out/KERNEL_VERSION.txt
+          '
+          D=experiments/rk3588-exec-wake-v10
+          cp "$D/ivshmem_server.py" out/
+          cp "$D/run-one-v10.sh" out/
+          cp "$D/run-v10-matrix.py" out/
+          cp "$D/verify-v10.py" out/
+          cp "$D/rkmesh_v10.c" out/rkmesh_v10-source.c
+          cp "$D/init_v10.c" out/init_v10-source.c
+          chmod +x out/ivshmem_server.py out/run-one-v10.sh out/run-v10-matrix.py out/verify-v10.py
+
+      - name: Gate migration wake liveness across 20 fresh four-guest boots, then run matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf out/reliability
+          mkdir -p out/reliability
+          for i in $(seq -w 1 20); do
+            root="$PWD/out/reliability/run-$i"
+            RUN_ROOT="$root" ./out/run-one-v10.sh 0
+            summary="$root/migrate/summary.txt"
+            grep -q 'mode=migrate iterations=7 migrations=1 final_host=1 task_page_bytes=73728 state_transfer_bytes=8192 state_xfers=1 measured_total=81920 mutation_control_bytes=12288' "$summary"
+            grep -q 'final_state_gen=7 final_state_checksum=0xa1d675e2b67b913c exec_valid_wakes=1 exec_stale_wakes=1 old_host_excluded=1 exec_runs=1 doorbells=47 barrier_arrivals=112 parked0=3' "$summary"
+            test "$(grep -c 'RKMESH_V10_EXEC_WAKE_STALE_IGNORED id=1 expected_gen=2' "$root/migrate/node1.log")" -eq 1
+            test "$(grep -c 'RKMESH_V10_EXEC_WAKE_VALID id=1 gen=2 dest=1' "$root/migrate/node1.log")" -eq 1
+            test "$(grep -c 'RKMESH_V10_OLD_HOST_EXCLUDED id=0 gen=2 new_owner=1' "$root/migrate/node0.log")" -eq 1
+            test "$(grep -c 'RKMESH_V10_OLD_HOST_COMMIT_REJECTED id=0 iter=2 errno=1' "$root/migrate/node0.log")" -eq 1
+            echo "RKMESH_V10_MIGRATION_WAKE_RELIABILITY_PASS run=$i"
+          done | tee out/MIGRATION_WAKE_RELIABILITY.txt
+          test "$(grep -c '^RKMESH_V10_MIGRATION_WAKE_RELIABILITY_PASS ' out/MIGRATION_WAKE_RELIABILITY.txt)" -eq 20
+          ./out/run-v10-matrix.py
+          ./out/verify-v10.py | tee out/V10_VERIFY.txt
+          find out/reliability out/results -type f -name iv.bin -delete
+          find out/reliability out/results -type s -delete || true
+          (cd out && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+      - name: Package passing V10 runtime
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C out -czf rk3588-exec-wake-v10.tar.gz .
+          sha256sum rk3588-exec-wake-v10.tar.gz | tee rk3588-exec-wake-v10.tar.gz.sha256
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rk3588-exec-wake-v10
+          path: |
+            rk3588-exec-wake-v10.tar.gz
+            rk3588-exec-wake-v10.tar.gz.sha256
+            out/QEMU_VERSION.txt
+            out/KERNEL_VERSION.txt
+            out/SHA256SUMS
+            out/MIGRATION_WAKE_RELIABILITY.txt
+            out/V10_RESULT.json
+            out/V10_VERIFY.txt
+            out/reliability/**
+            out/results/**
+            experiments/rk3588-exec-wake-v10/rkmesh_v10.c
+            experiments/rk3588-exec-wake-v10/init_v10.c
+            experiments/rk3588-exec-wake-v10/run-one-v10.sh
+            experiments/rk3588-exec-wake-v10/run-v10-matrix.py
+            experiments/rk3588-exec-wake-v10/verify-v10.py
+            experiments/rk3588-exec-wake-v10/ivshmem_server.py
+            experiments/rk3588-exec-wake-v10/Makefile
+          if-no-files-found: warn
+          retention-days: 2
+          compression-level: 0
