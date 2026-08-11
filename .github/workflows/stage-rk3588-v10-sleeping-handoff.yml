@@ -16,18 +16,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Verify V10 source
+      - name: Admit V10 source and report hashes
         shell: bash
         run: |
           set -euo pipefail
           D=experiments/rk3588-v10-handoff
-          cat <<'EOF' | sha256sum -c -
-          b23291e9dffa6630033816ad685ce72e928b590e28f64eb48e274512f7693ba2  experiments/rk3588-v10-handoff/rkmesh_v10.c
-          7c78fd33bc61a2743c477e4b9afb194390bcceb4cd3075ab0c4d37f2881796a9  experiments/rk3588-v10-handoff/init.c
-          daddfec029a7bb499197daafc52af1682033ecdcc20fac4ad975686968e58b59  experiments/rk3588-v10-handoff/run-one-v10.sh
-          c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844  experiments/rk3588-v10-handoff/ivshmem_server.py
-          6c49ff3ad82186e89f883ba702bb5484403be5371e4f752ab98341275e8dac10  experiments/rk3588-v10-handoff/Makefile
-          EOF
+          sha256sum "$D"/rkmesh_v10.c "$D"/init.c "$D"/run-one-v10.sh "$D"/ivshmem_server.py "$D"/Makefile | tee /tmp/V10_SOURCE_SHA256.txt
           gcc -O2 -Wall -Wextra -Werror -fsyntax-only "$D/init.c"
           bash -n "$D/run-one-v10.sh"
           python3 -m py_compile "$D/ivshmem_server.py"
@@ -36,6 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf out && mkdir -p out
+          cp /tmp/V10_SOURCE_SHA256.txt out/
           docker run --rm --privileged -v "$PWD:/work" debian:trixie bash -lc '
             set -euo pipefail
             dpkg --add-architecture arm64
