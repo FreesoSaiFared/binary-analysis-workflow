@@ -1,20 +1,124 @@
 [33mW rknn-toolkit version: 1.7.5[0m
 [33mW Verbose file path is invalid, debug info will not dump to file.[0m
 D Using CPPUTILS: True[0m
+[33mW If you don't need to crop the model, don't set 'inputs'/'input_size_list'/'outputs'![0m
+I Try optimize ONNX model.[0m
+I base_optimize ...[0m
+I base_optimize done.[0m
+[33mW base_optimize check ...[0m
+I base_optimize check results:[0m
+[33mW     "output": cosine = 1.0,  euclidean = 0.0[0m
+I [0m
+I fold_constant ...[0m
+I fold_constant done.[0m
+I [0m
+I correct_ops ...[0m
+I correct_ops done.[0m
+I [0m
+I fuse_ops ...[0m
+I fuse_ops done.[0m
+I [0m
+I Optimize ONNX model done.[0m
+I Start importing onnx...[0m
+I Current ONNX Model use ir_version 8 opset_version 12[0m
+D Calc tensor Initializer_b1 (3,)[0m
+D Calc tensor Initializer_w1 (3, 16, 1, 1)[0m
+D Calc tensor Initializer_bdw (16,)[0m
+D Calc tensor Initializer_wdw (16, 1, 3, 3)[0m
+D Calc tensor Initializer_b0 (16,)[0m
+D Calc tensor Initializer_w0 (16, 3, 3, 3)[0m
+D Calc tensor Conv_f0 (1, 16, 64, 64)[0m
+D Calc tensor Relu_r0 (1, 16, 64, 64)[0m
+D Calc tensor Conv_fdw (1, 16, 64, 64)[0m
+D Calc tensor Relu_rdw (1, 16, 64, 64)[0m
+D Calc tensor Conv_residual (1, 3, 64, 64)[0m
+D Calc tensor Add_output (1, 3, 64, 64)[0m
+D import clients finished[0m
+I build output layer attach_Add_residual_add:out0[0m
+I Try match layer: Add_residual_add:out0[0m
+I Match r_add, convert ONNX layer: ['Add_residual_add'](OPs: ['Add']) to ['add'][0m
+I Try match layer: Conv_conv_out:out0[0m
+I Match r_conv, convert ONNX layer: ['Conv_conv_out', 'Initializer_w1', 'Initializer_b1'](OPs: ['Conv', 'Constant_0', 'Constant_1']) to ['convolution'][0m
+/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/api/rknn.py:160: FutureWarning: Possible nested set at position 7
+  ret = self.rknn_base.load_onnx(model, inputs, input_size_list, outputs)
+I Try match layer: Relu_relu1:out0[0m
+I Match r_relu, convert ONNX layer: ['Relu_relu1'](OPs: ['Relu']) to ['relu'][0m
+I Try match layer: Conv_depthwise3x3:out0[0m
+I Match r_conv, convert ONNX layer: ['Conv_depthwise3x3', 'Initializer_wdw', 'Initializer_bdw'](OPs: ['Conv', 'Constant_0', 'Constant_1']) to ['convolution'][0m
+I Try match layer: Relu_relu0:out0[0m
+I Match r_relu, convert ONNX layer: ['Relu_relu0'](OPs: ['Relu']) to ['relu'][0m
+I Try match layer: Conv_conv_in:out0[0m
+I Match r_conv, convert ONNX layer: ['Conv_conv_in', 'Initializer_w0', 'Initializer_b0'](OPs: ['Conv', 'Constant_0', 'Constant_1']) to ['convolution'][0m
+I build input layer input:out0[0m
+D connect input_7 0  ~ Add_residual_add_1 0[0m
+D connect Conv_conv_out_2 0  ~ Add_residual_add_1 1[0m
+D connect Relu_relu1_3 0  ~ Conv_conv_out_2 0[0m
+D connect Conv_depthwise3x3_4 0  ~ Relu_relu1_3 0[0m
+D connect Relu_relu0_5 0  ~ Conv_depthwise3x3_4 0[0m
+D connect Conv_conv_in_6 0  ~ Relu_relu0_5 0[0m
+D connect input_7 0  ~ Conv_conv_in_6 0[0m
+D connect Add_residual_add_1 0  ~ attach_Add_residual_add/out0_0 0[0m
+2026-08-19 14:41:32.312485: I tensorflow/core/platform/cpu_feature_guard.cc:143] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 AVX512F FMA
+2026-08-19 14:41:32.315319: I tensorflow/core/platform/profile_utils/cpu_utils.cc:102] CPU Frequency: 2596095000 Hz
+2026-08-19 14:41:32.315450: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x7fe840000b70 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2026-08-19 14:41:32.315460: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2026-08-19 14:41:32.316279: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
+2026-08-19 14:41:32.316287: E tensorflow/stream_executor/cuda/cuda_driver.cc:313] failed call to cuInit: UNKNOWN ERROR (303)
+2026-08-19 14:41:32.316298: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (runnervmec1zy): /proc/driver/nvidia/version does not exist
+D Process input_7 ...[0m
+D RKNN output shape(input): (1 64 64 3)[0m
+D Tensor @input_7:out0 type: float32[0m
+D Process Conv_conv_in_6 ...[0m
+D RKNN output shape(convolution): (1 64 64 16)[0m
+D Tensor @Conv_conv_in_6:out0 type: float32[0m
+D Process Relu_relu0_5 ...[0m
+D RKNN output shape(relu): (1 64 64 16)[0m
+D Tensor @Relu_relu0_5:out0 type: float32[0m
+D Process Conv_depthwise3x3_4 ...[0m
+D RKNN output shape(convolution): (1 64 64 16)[0m
+D Tensor @Conv_depthwise3x3_4:out0 type: float32[0m
+D Process Relu_relu1_3 ...[0m
+D RKNN output shape(relu): (1 64 64 16)[0m
+D Tensor @Relu_relu1_3:out0 type: float32[0m
+D Process Conv_conv_out_2 ...[0m
+D RKNN output shape(convolution): (1 64 64 3)[0m
+D Tensor @Conv_conv_out_2:out0 type: float32[0m
+D Process Add_residual_add_1 ...[0m
+D RKNN output shape(add): (1 64 64 3)[0m
+D Tensor @Add_residual_add_1:out0 type: float32[0m
+D Process attach_Add_residual_add/out0_0 ...[0m
+D RKNN output shape(output): (1 64 64 3)[0m
+D Tensor @attach_Add_residual_add/out0_0:out0 type: float32[0m
+I Build rv1126_tiny_residual_f2 complete.[0m
+D Optimizing network with EBL_Linear_large_feature_seperate, HFD_lstm_output_check, HFD_cumsum_to_conv2d, HFD_conv1d_to_2d, HP_fuse_conv1d_bn1d, HFD_conv1d_dilation_opt, HFD_buffer_operation_excute_immediately, HFD_argmin_argmax_output_dequant, HFD_bn1d_to_bn2d, HFD_matmul_opt, HP_focus_fuse, HP_deconvolution_optimize, HP_linear_fuse, HP_fuse_1d_to_2d_redundant_reshape[0m
+I Start C2T Switcher...[0m
+D Optimizing network with broadcast_op, remove_cast[0m
+I End C2T Switcher...[0m
+D Optimizing network with force_1d_tensor, swapper, merge_duplicate_quantize_dequantize, merge_layer, auto_fill_bn, auto_fill_l2normalizescale, auto_fill_instancenormalize, resize_nearest_transformer, eltwise_transform, auto_fill_multiply, auto_fill_zero_bias, proposal_opt_import, special_add_to_conv2d[0m
+I End importing onnx...[0m
+I Generate input meta ...[0m
+I Load input meta[0m
+I Generate input meta ...[0m
+D import clients finished[0m
+I Load net...[0m
+I Load data...[0m
+I Load input meta[0m
+[31mE Catch exception when building RKNN model![0m
+[31mE Traceback (most recent call last):[0m
+[31mE   File "rknn/base/RKNNlib/RKNNnet.py", line 675, in rknn.base.RKNNlib.RKNNnet.RKNNNet.load_input_meta[0m
+[31mE   File "rknn/base/RKNNlib/RKNNnet.py", line 678, in rknn.base.RKNNlib.RKNNnet.RKNNNet.load_input_meta[0m
+[31mE   File "rknn/base/RKNNlib/RKNNnet.py", line 398, in rknn.base.RKNNlib.RKNNnet.RKNNNet.update_input_meta[0m
+[31mE   File "rknn/base/RKNNlib/net_input_meta.py", line 20, in rknn.base.RKNNlib.net_input_meta.NetInputMeta.__init__[0m
+[31mE   File "rknn/base/RKNNlib/net_input_meta.py", line 59, in rknn.base.RKNNlib.net_input_meta.DatabaseMeta.__init__[0m
+[31mE AssertionError[0m
+[31mE Please feedback the detailed log file <log_feedback_to_the_rknn_toolkit_dev_team.log> to the RKNN Toolkit development team.[0m
+[31mE You can also check github issues: https://github.com/rockchip-linux/rknn-toolkit/issues[0m
+F2_CONFIG_BEGIN quantized=0
+F2_LOAD_ONNX_BEGIN
+F2_BUILD_BEGIN
 Traceback (most recent call last):
   File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 27, in <module>
     compile_one(False, 'rv1126_tiny_residual_f2_fp.rknn')
-  File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 10, in compile_one
-    rknn = RKNN(verbose=True)
-  File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/api/rknn.py", line 78, in __init__
-    self.config()
-  File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/api/rknn.py", line 753, in config
-    return self.rknn_base.config(args)
-  File "rknn/api/rknn_base.py", line 73, in rknn.api.rknn_base.RKNNBase.config
-  File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/base/acuitylib/__init__.py", line 1, in <module>
-    from acuitylib.optimize.optimizer import Optimizer
-  File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/base/acuitylib/__init__.py", line 1, in <module>
-    from acuitylib.optimize.optimizer import Optimizer
-  File "rknn/base/acuitylib/optimize/optimizer.py", line 128, in init rknn.base.acuitylib.optimize.optimizer
-  File "rknn/base/acuitylib/optimize/rules/high_performance/model_pruning.py", line 3, in init rknn.base.acuitylib.optimize.rules.high_performance.model_pruning
-ModuleNotFoundError: No module named 'torch'
+  File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 19, in compile_one
+    if ret != 0: raise RuntimeError(f'build ret={ret}')
+RuntimeError: build ret=-1
