@@ -42,12 +42,15 @@ jobs:
             echo "da4cd1a1968f9e9aa5414a67598f5374  $WHEEL" | md5sum -c -
             python -m pip install --upgrade 'pip<25' wheel
             python -m pip install "$WHEEL"
-            python -m pip install 'onnx==1.12.0' 'protobuf<4'
+            # Rockchip publishes the framework requirements separately from the wheel.
+            # The Acuity graph layer imports TensorFlow even when the selected frontend is ONNX.
+            python -m pip install 'tensorflow==2.2.0'
             python - <<'PY'
-          import sys, rknn, onnx
+          import sys, rknn, onnx, tensorflow as tf
           print('F2_PYTHON',sys.version)
           print('F2_RKNN_IMPORT',rknn.__file__)
           print('F2_ONNX_VERSION',onnx.__version__)
+          print('F2_TENSORFLOW_VERSION',tf.__version__)
           PY
           ) >"$D/F2_INSTALL.txt" 2>&1
           rc=$?
