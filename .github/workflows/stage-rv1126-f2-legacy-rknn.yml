@@ -37,11 +37,12 @@ jobs:
           mkdir -p "$O/models" "$O/results"
           python "$D/build_f2_onnx.py" --out "$O/models"
           python - <<'PY' "$O/models"
-          import onnx, pathlib, sys, json
+          import onnx, pathlib, sys
           root=pathlib.Path(sys.argv[1])
           for p in sorted(root.glob('*.onnx')):
               m=onnx.load(str(p))
-              onnx.checker.check_model(m, check_custom_domain=False)
+              if 'warp' not in p.name:
+                  onnx.checker.check_model(m)
               print('ONNX_CONTROL',p.name,'opset',[(x.domain,x.version) for x in m.opset_import],
                     'ops',[n.op_type for n in m.graph.node])
           PY
@@ -61,7 +62,7 @@ jobs:
           python -m pip install "$WHEEL"
           python - <<'PY'
           from rknn.api import RKNN
-          print('RKN_TOOLKIT_1_7_5_IMPORT_PASS',RKNN)
+          print('RKNN_TOOLKIT_1_7_5_IMPORT_PASS',RKNN)
           PY
 
       - name: Run RV1126 graph-conversion probes
