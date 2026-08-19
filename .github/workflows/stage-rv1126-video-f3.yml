@@ -1,0 +1,119 @@
+name: Prove RV1126 generative video fabric F3 component pipeline
+
+on:
+  push:
+    branches:
+      - rk3588-rv1126-video-fabric-f0f1
+    paths:
+      - 'experiments/rv1126-video-fabric-f0f1/frankenfabric_video_f3.py'
+      - '.github/workflows/stage-rv1126-video-f3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  f3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rk3588-rv1126-video-fabric-f0f1
+          fetch-depth: 0
+
+      - name: Run F3 component sweep
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          python3 "$D/frankenfabric_video_f3.py" --outdir "$D" | tee "$D/F3_RUN.txt"
+
+      - name: Assert F3 invariants and generate report
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          python3 - <<'PY'
+          import json, pathlib, math
+          d=pathlib.Path('experiments/rv1126-video-fabric-f0f1')
+          s=json.loads((d/'f3_summary.json').read_text())
+          assert s['status']=='F3_COMPONENT_SOFTWARE_SIMULATION_ONLY'
+          assert s['rows_bandwidth']==2916, s['rows_bandwidth']
+          assert s['rows_utilization']==1944, s['rows_utilization']
+
+          comps={(x['source_res'],x['authoritative']):x for x in s['component_budgets']}
+          assert math.isclose(comps[('360p',False)]['total_gop'],1.443446784,rel_tol=0,abs_tol=1e-12)
+          assert math.isclose(comps[('360p',True)]['total_gop'],1.1501568,rel_tol=0,abs_tol=1e-12)
+
+          focus={(x['source_fps'],x['transport']):x for x in s['median_360p_4node_125mib']}
+          for sf in (5,10,15):
+              assert focus[(sf,'owner_only')]['deadline_misses']==0
+              assert focus[(sf,'finishing_owner')]['deadline_misses']==0
+              assert focus[(sf,'independent_au')]['deadline_misses']==0
+              assert focus[(sf,'raw_gather')]['deadline_misses']>0
+              assert focus[(sf,'raw_gather')]['bottleneck']=='INTERCONNECT'
+
+          got={x['source_fps']:(x['owner_only_crossover_mib_s'],x['finishing_owner_crossover_mib_s'],x['independent_au_crossover_mib_s'],x['raw_gather_crossover_mib_s']) for x in s['crossovers_360p_median_4node']}
+          expect={5:(12.5,50,12.5,200),10:(12.5,12.5,12.5,200),15:(12.5,12.5,12.5,200)}
+          assert got==expect,(got,expect)
+
+          lines=[]
+          lines += ['# RV1126 GENERATIVE VIDEO FABRIC — F3','']
+          lines += ['Status: **COMPONENT-LEVEL SOFTWARE SIMULATION PASS**. This is not RV1126 silicon timing, trained-model quality, memory-bandwidth, MPP throughput, or NPU-utilization proof.','']
+          lines += ['F3 replaces F0/F1\'s single synthetic 30-GOP reconstructed-frame knob with component arithmetic derived from the exact F2 compiler-accepted residual topology plus explicit deterministic warp/scale latency assumptions.','']
+          lines += ['## Median 360p scene, 4-node module, 40% effective-NPU factor, 125 MiB/s full-duplex controller link','']
+          lines += ['| input | transport | fps | misses | P95 latency ms | transfer MiB/s | compute capacity | bottleneck |','|---|---|---:|---:|---:|---:|---:|---|']
+          for x in s['median_360p_4node_125mib']:
+              lines.append(f"| 360p{x['source_fps']} | {x['transport']} | {x['throughput_fps']:.2f} | {x['deadline_misses']} | {x['p95_latency_ms']:.1f} | {x['avg_mib_s_over_clip']:.1f} | {x['compute_capacity_ratio']:.2f}x | {x['bottleneck']} |")
+          lines += ['','The central F3 result is structural: under this deliberately tiny compiler-accepted neural topology, arithmetic is not the modeled bottleneck for one stream. Transport and ownership dominate much earlier. `raw_gather` exceeds the 125 MiB/s test point and misses nearly the entire clip, while owner-local encoded output, a finishing owner, and the penalized independently-decodable-unit model all meet the 250 ms offline deadline in the median cases.','']
+          lines += ['## Component arithmetic','', '| source | reconstructed frame GOP | genuine frame GOP |','|---|---:|---:|']
+          for sr in ('360p','540p','720p'):
+              r=comps[(sr,False)]; a=comps[(sr,True)]
+              lines.append(f"| {sr} | {r['total_gop']:.6f} | {a['total_gop']:.6f} |")
+          lines += ['','For the median 360p workload the reconstructed-frame neural arithmetic is 1.443446784 GOP and genuine-frame finishing is 1.1501568 GOP. These are graph arithmetic under assumed refinement fractions/passes, not measured NPU execution times.','']
+          lines += ['## Bandwidth crossover — median 360p, 4 nodes, 40% effective factor','', '| input | owner-only | finishing-owner | independent AU | raw gather |','|---|---:|---:|---:|---:|']
+          for x in s['crossovers_360p_median_4node']:
+              lines.append(f"| 360p{x['source_fps']} | {x['owner_only_crossover_mib_s']} | {x['finishing_owner_crossover_mib_s']} | {x['independent_au_crossover_mib_s']} | {x['raw_gather_crossover_mib_s']} |")
+          lines += ['','The 5-fps finishing-owner case retains F0\'s burst effect and needs 50 MiB/s on the tested grid because many reconstructed positions become eligible together and non-owner workers return 720p intermediates. Raw 1080p gathering requires 200 MiB/s across all three source rates on the tested grid.','']
+          lines += ['## Facts, assumptions, and boundaries','']
+          lines += ['**COMPILER-CONTRACT EVIDENCE**', '- F2 successfully exported both FP and INT8 `.rknn` artifacts for target `rv1126` from the fixed Conv/ReLU/depthwise-Conv/ReLU/Conv/Add residual graph.', '- F3 uses the exact arithmetic of that topology: 1248 operations/pixel when one MAC is counted as two operations.','']
+          lines += ['**ASSUMED F3 WORKLOAD PARAMETERS**','- optimistic/median/adversarial fractions of pixels needing residual refinement and disocclusion repair;','- one to four residual passes depending on scene profile;','- deterministic warp and scale latency per megapixel;','- 12 Mbit/s base encoded stream; independent-access-unit bitrate penalties of 1.35x / 1.8x / 3x;','- finishing-owner transport sends raw 720p intermediates from non-owner workers;','- 20–70% nominal-TOPS effectiveness remains a sensitivity parameter, not measured efficiency;','- ingress and egress are independent full-duplex queues as in F0.','']
+          lines += ['**NOT PROVEN**','- that these refinement fractions produce acceptable images;','- RV1126 NPU execution time, DRAM bandwidth or thermal sustain;','- that MPP can provide the modeled independent-access-unit or finishing-owner encoding topology at the assumed bitrate;','- cross-node codec-state assembly;','- actual GPU compute savings;','- shared/half-duplex switch behavior.','']
+          lines += ['## Adverse implication','', 'Adding RV1126s is not automatically beneficial for one stream. With a tiny residual graph, frame-parallel workers replicate temporal context and can create more transport. The economically relevant use of extra chips may therefore be **more simultaneous streams**, larger quality networks, or specialized pools—not simply lower latency for one stream.','']
+          lines += ['## Exact next experiment — F4','', 'Compare `owner/residency`, naive frame-parallel, stage-pipeline, tile-parallel, and V9-like adaptive scheduling under the F3 component workload. Include temporal-context replication, tile halos/seams, finishing-owner traffic, and multi-stream packing. F4 must identify when a four-chip module should accelerate one stream versus run four largely independent stream owners.','']
+          (d/'RV1126_GENERATIVE_VIDEO_FABRIC_F3.md').write_text('\n'.join(lines))
+          print('RV1126_F3_ASSERTIONS_PASS')
+          PY
+
+      - name: Freeze F3 hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          sha256sum \
+            "$D/frankenfabric_video_f3.py" \
+            "$D/RV1126_GENERATIVE_VIDEO_FABRIC_F3.md" \
+            "$D/f3_transport_bandwidth_sweep.csv" \
+            "$D/f3_utilization_sweep.csv" \
+            "$D/f3_component_budget.csv" \
+            "$D/f3_crossovers.csv" \
+            "$D/f3_summary.json" \
+            "$D/F3_RUN.txt" | tee "$D/F3_SHA256SUMS.txt"
+
+      - name: Commit F3 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$D/RV1126_GENERATIVE_VIDEO_FABRIC_F3.md" \
+                  "$D/f3_transport_bandwidth_sweep.csv" "$D/f3_utilization_sweep.csv" \
+                  "$D/f3_component_budget.csv" "$D/f3_crossovers.csv" \
+                  "$D/f3_summary.json" "$D/F3_RUN.txt" "$D/F3_SHA256SUMS.txt"
+          if git diff --cached --quiet; then
+            echo 'F3 evidence already current.'
+          else
+            git commit -m 'Freeze RV1126 F3 component pipeline evidence'
+            git push origin HEAD:rk3588-rv1126-video-fabric-f0f1
+          fi
