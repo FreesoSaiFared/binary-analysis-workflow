@@ -1,5 +1,6 @@
 [33mW rknn-toolkit version: 1.7.5[0m
 [33mW Verbose file path is invalid, debug info will not dump to file.[0m
+D Using CPPUTILS: True[0m
 Traceback (most recent call last):
   File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 27, in <module>
     compile_one(False, 'rv1126_tiny_residual_f2_fp.rknn')
@@ -14,11 +15,6 @@ Traceback (most recent call last):
     from acuitylib.optimize.optimizer import Optimizer
   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/base/acuitylib/__init__.py", line 1, in <module>
     from acuitylib.optimize.optimizer import Optimizer
-  File "rknn/base/acuitylib/optimize/optimizer.py", line 15, in init rknn.base.acuitylib.optimize.optimizer
-  File "rknn/base/acuitylib/optimize/rules/merge_layer.py", line 3, in init rknn.base.acuitylib.optimize.rules.merge_layer
-  File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/base/acuitylib/layer/__init__.py", line 2, in <module>
-    from acuitylib.layer.add import *
-  File "rknn/base/acuitylib/layer/add.py", line 1, in init rknn.base.acuitylib.layer.add
-  File "rknn/base/acuitylib/layer/acuitylayer.py", line 3, in init rknn.base.acuitylib.layer.acuitylayer
-  File "rknn/base/acuitylib/xtf.py", line 1, in init rknn.base.acuitylib.xtf
-ModuleNotFoundError: No module named 'tensorflow'
+  File "rknn/base/acuitylib/optimize/optimizer.py", line 128, in init rknn.base.acuitylib.optimize.optimizer
+  File "rknn/base/acuitylib/optimize/rules/high_performance/model_pruning.py", line 3, in init rknn.base.acuitylib.optimize.rules.high_performance.model_pruning
+ModuleNotFoundError: No module named 'torch'

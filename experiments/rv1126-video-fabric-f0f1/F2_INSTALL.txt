@@ -5,7 +5,7 @@
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-  1  678M    1 7821k    0     0  9920k      0  0:01:09 --:--:--  0:01:09 9920k 21  678M   21  144M    0     0  80.6M      0  0:00:08  0:00:01  0:00:07  136M 48  678M   48  326M    0     0   117M      0  0:00:05  0:00:02  0:00:03  159M 75  678M   75  514M    0     0   135M      0  0:00:04  0:00:03  0:00:01  168M100  678M  100  678M    0     0   145M      0  0:00:04  0:00:04 --:--:--  172M
+  0  678M    0 4349k    0     0  6729k      0  0:01:43 --:--:--  0:01:43 6729k  5  678M    5 40.0M    0     0  22.4M      0  0:00:30  0:00:01  0:00:29 31.5M  8  678M    8 60.0M    0     0  22.5M      0  0:00:30  0:00:02  0:00:28 27.7M 14  678M   14 99.0M    0     0  27.0M      0  0:00:25  0:00:03  0:00:22 31.4M 20  678M   20  141M    0     0  30.4M      0  0:00:22  0:00:04  0:00:18 34.2M 25  678M   25  176M    0     0  30.9M      0  0:00:21  0:00:05  0:00:16 34.0M 30  678M   30  210M    0     0  31.4M      0  0:00:21  0:00:06  0:00:15 34.7M 36  678M   36  250M    0     0  32.5M      0  0:00:20  0:00:07  0:00:13 37.8M 43  678M   43  292M    0     0  33.7M      0  0:00:20  0:00:08  0:00:12 38.6M 50  678M   50  340M    0     0  35.1M      0  0:00:19  0:00:09  0:00:10 39.6M 57  678M   57  393M    0     0  36.9M      0  0:00:18  0:00:10  0:00:08 43.7M 65  678M   65  443M    0     0  38.0M      0  0:00:17  0:00:11  0:00:06 46.9M 72  678M   72  490M    0     0  38.7M      0  0:00:17  0:00:12  0:00:05 48.1M 78  678M   78  530M    0     0  38.7M      0  0:00:17  0:00:13  0:00:04 47.2M 85  678M   85  580M    0     0  39.6M      0  0:00:17  0:00:14  0:00:03 48.3M 89  678M   89  610M    0     0  38.8M      0  0:00:17  0:00:15  0:00:02 42.8M 95  678M   95  646M    0     0  38.8M      0  0:00:17  0:00:16  0:00:01 40.6M100  678M  100  678M    0     0  38.7M      0  0:00:17  0:00:17 --:--:-- 39.0M
 + echo '0818a331d3bba755036cfee296bdad31  packages.tar.gz'
 + md5sum -c -
 packages.tar.gz: OK
@@ -22,7 +22,7 @@ Collecting pip<25
 Collecting wheel
   Downloading wheel-0.45.1-py3-none-any.whl.metadata (2.3 kB)
 Downloading pip-24.3.1-py3-none-any.whl (1.8 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 4.2 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 54.0 MB/s eta 0:00:00
 Downloading wheel-0.45.1-py3-none-any.whl (72 kB)
 Installing collected packages: wheel, pip
   Attempting uninstall: pip
@@ -121,26 +121,26 @@ Downloading Flask-2.0.2-py3-none-any.whl (95 kB)
 Downloading flatbuffers-1.10-py2.py3-none-any.whl (15 kB)
 Downloading Jinja2-3.0.0-py3-none-any.whl (133 kB)
 Downloading matplotlib-3.3.4-cp38-cp38-manylinux1_x86_64.whl (11.6 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.6/11.6 MB 106.1 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.6/11.6 MB 52.0 MB/s eta 0:00:00
 Downloading networkx-1.11-py2.py3-none-any.whl (1.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 103.9 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 149.2 MB/s eta 0:00:00
 Downloading numpy-1.19.5-cp38-cp38-manylinux2010_x86_64.whl (14.9 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.9/14.9 MB 125.3 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.9/14.9 MB 210.5 MB/s eta 0:00:00
 Downloading onnx-1.10.0-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (12.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.3/12.3 MB 44.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.3/12.3 MB 11.2 MB/s eta 0:00:00
 Downloading onnxruntime-1.9.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.8 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 63.9 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 14.9 MB/s eta 0:00:00
 Downloading opencv_python-4.5.1.48-cp38-cp38-manylinux2014_x86_64.whl (50.4 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.4/50.4 MB 129.4 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.4/50.4 MB 59.2 MB/s eta 0:00:00
 Downloading ply-3.11-py2.py3-none-any.whl (49 kB)
 Downloading protobuf-3.13.0-cp38-cp38-manylinux1_x86_64.whl (1.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 12.4 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 154.7 MB/s eta 0:00:00
 Downloading requests-2.22.0-py2.py3-none-any.whl (57 kB)
 Downloading tqdm-4.63.0-py2.py3-none-any.whl (76 kB)
 Downloading onnxoptimizer-0.3.13-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (677 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 677.8/677.8 kB 74.4 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 677.8/677.8 kB 84.4 MB/s eta 0:00:00
 Downloading scipy-1.4.1-cp38-cp38-manylinux1_x86_64.whl (26.0 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 26.0/26.0 MB 73.3 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 26.0/26.0 MB 102.7 MB/s eta 0:00:00
 Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
 Downloading chardet-3.0.4-py2.py3-none-any.whl (133 kB)
 Downloading click-8.1.8-py3-none-any.whl (98 kB)
@@ -149,10 +149,10 @@ Downloading decorator-5.3.1-py3-none-any.whl (10 kB)
 Downloading idna-2.8-py2.py3-none-any.whl (58 kB)
 Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
 Downloading kiwisolver-1.4.7-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl (1.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 105.8 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 145.1 MB/s eta 0:00:00
 Downloading MarkupSafe-2.1.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (26 kB)
 Downloading pillow-10.4.0-cp38-cp38-manylinux_2_28_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 111.0 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 208.1 MB/s eta 0:00:00
 Downloading pyparsing-3.1.4-py3-none-any.whl (104 kB)
 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
@@ -160,21 +160,21 @@ Downloading typing_extensions-4.13.2-py3-none-any.whl (45 kB)
 Downloading urllib3-1.25.11-py2.py3-none-any.whl (127 kB)
 Downloading werkzeug-3.0.6-py3-none-any.whl (227 kB)
 Downloading scikit_learn-1.2.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (9.8 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 102.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 213.4 MB/s eta 0:00:00
 Downloading joblib-1.4.2-py3-none-any.whl (301 kB)
 Downloading threadpoolctl-3.5.0-py3-none-any.whl (18 kB)
 Building wheels for collected packages: psutil, ruamel.yaml, sklearn
   Building wheel for psutil (setup.py): started
   Building wheel for psutil (setup.py): finished with status 'done'
-  Created wheel for psutil: filename=psutil-5.6.2-cp38-cp38-linux_x86_64.whl size=268294 sha256=ac150d848d95ca76228c7937f42c51b23c03211511e5d02b5eff34fcc860134d
+  Created wheel for psutil: filename=psutil-5.6.2-cp38-cp38-linux_x86_64.whl size=268299 sha256=50f15e0288f69429bdf6842f1cc304827b17c4bf368ef619035259fcb0405aad
   Stored in directory: /home/runner/.cache/pip/wheels/8f/7b/75/437d81e9c25a1abadcc771195ee8f74a0abb2c4a6db64522ab
   Building wheel for ruamel.yaml (setup.py): started
   Building wheel for ruamel.yaml (setup.py): finished with status 'done'
-  Created wheel for ruamel.yaml: filename=ruamel.yaml-0.15.81-cp38-cp38-linux_x86_64.whl size=841256 sha256=5a1012c5b577c735e5dc5821753efc4ebbe0a45260d9288cccf15ee704745083
+  Created wheel for ruamel.yaml: filename=ruamel.yaml-0.15.81-cp38-cp38-linux_x86_64.whl size=841262 sha256=da9f2bf720f57eb500416992d676d7688c68881fa9a0441164fe16a559b657d1
   Stored in directory: /home/runner/.cache/pip/wheels/44/e4/45/f7274ae9714c6fc24cf5cfcdc34178833daed150eb164061b2
   Building wheel for sklearn (setup.py): started
   Building wheel for sklearn (setup.py): finished with status 'done'
-  Created wheel for sklearn: filename=sklearn-0.0-py2.py3-none-any.whl size=1316 sha256=e578053ad91985118a8a2df24e358e8463c5470d324e9ddcbe3bf9461e3b4bba
+  Created wheel for sklearn: filename=sklearn-0.0-py2.py3-none-any.whl size=1316 sha256=c3f1d7420a592b9707d0f6b3da92e8f4bb0fb6071c903b0f13a40d3bac90d6ca
   Stored in directory: /home/runner/.cache/pip/wheels/22/0b/40/fd3f795caaa1fb4c6cb738bc1f56100be1e57da95849bfc897
 Successfully built psutil ruamel.yaml sklearn
 Installing collected packages: ruamel.yaml, ply, flatbuffers, chardet, urllib3, typing-extensions, tqdm, threadpoolctl, six, pyparsing, psutil, pillow, numpy, MarkupSafe, kiwisolver, joblib, itsdangerous, idna, decorator, cycler, click, certifi, Werkzeug, scipy, requests, python-dateutil, protobuf, opencv-python, networkx, Jinja2, scikit-learn, onnxruntime, onnx, matplotlib, flask, sklearn, onnxoptimizer, rknn-toolkit
@@ -182,24 +182,102 @@ Successfully installed Jinja2-3.0.0 MarkupSafe-2.1.5 Werkzeug-3.0.6 certifi-2026
 
 [notice] A new release of pip is available: 24.3.1 -> 25.0.1
 [notice] To update, run: pip install --upgrade pip
-+ python -m pip install onnx==1.12.0 'protobuf<4'
-Collecting onnx==1.12.0
-  Downloading onnx-1.12.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (13 kB)
-Requirement already satisfied: protobuf<4 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (3.13.0)
-Requirement already satisfied: numpy>=1.16.6 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from onnx==1.12.0) (1.19.5)
-Requirement already satisfied: typing-extensions>=3.6.2.1 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from onnx==1.12.0) (4.13.2)
-Requirement already satisfied: six>=1.9 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from protobuf<4) (1.17.0)
-Requirement already satisfied: setuptools in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from protobuf<4) (56.0.0)
-Downloading onnx-1.12.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (13.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.1/13.1 MB 83.5 MB/s eta 0:00:00
-Installing collected packages: onnx
-  Attempting uninstall: onnx
-    Found existing installation: onnx 1.10.0
-    Uninstalling onnx-1.10.0:
-      Successfully uninstalled onnx-1.10.0
-ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-rknn-toolkit 1.7.5 requires onnx==1.10.0, but you have onnx 1.12.0 which is incompatible.
-Successfully installed onnx-1.12.0
++ python -m pip install tensorflow==2.2.0
+Collecting tensorflow==2.2.0
+  Downloading tensorflow-2.2.0-cp38-cp38-manylinux2010_x86_64.whl.metadata (2.8 kB)
+Collecting absl-py>=0.7.0 (from tensorflow==2.2.0)
+  Downloading absl_py-2.3.1-py3-none-any.whl.metadata (3.3 kB)
+Collecting astunparse==1.6.3 (from tensorflow==2.2.0)
+  Downloading astunparse-1.6.3-py2.py3-none-any.whl.metadata (4.4 kB)
+Collecting gast==0.3.3 (from tensorflow==2.2.0)
+  Downloading gast-0.3.3-py2.py3-none-any.whl.metadata (1.1 kB)
+Collecting google-pasta>=0.1.8 (from tensorflow==2.2.0)
+  Downloading google_pasta-0.2.0-py3-none-any.whl.metadata (814 bytes)
+Collecting h5py<2.11.0,>=2.10.0 (from tensorflow==2.2.0)
+  Downloading h5py-2.10.0-cp38-cp38-manylinux1_x86_64.whl.metadata (2.0 kB)
+Collecting keras-preprocessing>=1.1.0 (from tensorflow==2.2.0)
+  Downloading Keras_Preprocessing-1.1.2-py2.py3-none-any.whl.metadata (1.9 kB)
+Requirement already satisfied: numpy<2.0,>=1.16.0 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from tensorflow==2.2.0) (1.19.5)
+Collecting opt-einsum>=2.3.2 (from tensorflow==2.2.0)
+  Downloading opt_einsum-3.4.0-py3-none-any.whl.metadata (6.3 kB)
+Requirement already satisfied: protobuf>=3.8.0 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from tensorflow==2.2.0) (3.13.0)
+Collecting tensorboard<2.3.0,>=2.2.0 (from tensorflow==2.2.0)
+  Downloading tensorboard-2.2.2-py3-none-any.whl.metadata (2.0 kB)
+Collecting tensorflow-estimator<2.3.0,>=2.2.0 (from tensorflow==2.2.0)
+  Downloading tensorflow_estimator-2.2.0-py2.py3-none-any.whl.metadata (1.2 kB)
+Collecting termcolor>=1.1.0 (from tensorflow==2.2.0)
+  Downloading termcolor-2.4.0-py3-none-any.whl.metadata (6.1 kB)
+Collecting wrapt>=1.11.1 (from tensorflow==2.2.0)
+  Downloading wrapt-2.0.1-cp38-cp38-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (9.0 kB)
+Requirement already satisfied: six>=1.12.0 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from tensorflow==2.2.0) (1.17.0)
+Collecting grpcio>=1.8.6 (from tensorflow==2.2.0)
+  Downloading grpcio-1.70.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.9 kB)
+Requirement already satisfied: wheel>=0.26 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from tensorflow==2.2.0) (0.45.1)
+Requirement already satisfied: scipy==1.4.1 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from tensorflow==2.2.0) (1.4.1)
+Requirement already satisfied: setuptools in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from protobuf>=3.8.0->tensorflow==2.2.0) (56.0.0)
+Collecting google-auth<2,>=1.6.3 (from tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading google_auth-1.35.0-py2.py3-none-any.whl.metadata (3.5 kB)
+Collecting google-auth-oauthlib<0.5,>=0.4.1 (from tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading google_auth_oauthlib-0.4.6-py2.py3-none-any.whl.metadata (2.7 kB)
+Collecting markdown>=2.6.8 (from tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading Markdown-3.7-py3-none-any.whl.metadata (7.0 kB)
+Requirement already satisfied: requests<3,>=2.21.0 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0) (2.22.0)
+Collecting tensorboard-plugin-wit>=1.6.0 (from tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading tensorboard_plugin_wit-1.8.1-py3-none-any.whl.metadata (873 bytes)
+Requirement already satisfied: werkzeug>=0.11.15 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0) (3.0.6)
+Collecting cachetools<5.0,>=2.0.0 (from google-auth<2,>=1.6.3->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading cachetools-4.2.4-py3-none-any.whl.metadata (4.8 kB)
+Collecting pyasn1-modules>=0.2.1 (from google-auth<2,>=1.6.3->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+Collecting rsa<5,>=3.1.4 (from google-auth<2,>=1.6.3->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+Collecting requests-oauthlib>=0.7.0 (from google-auth-oauthlib<0.5,>=0.4.1->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl.metadata (11 kB)
+Collecting importlib-metadata>=4.4 (from markdown>=2.6.8->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading importlib_metadata-8.5.0-py3-none-any.whl.metadata (4.8 kB)
+Requirement already satisfied: chardet<3.1.0,>=3.0.2 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from requests<3,>=2.21.0->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0) (3.0.4)
+Requirement already satisfied: idna<2.9,>=2.5 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from requests<3,>=2.21.0->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0) (2.8)
+Requirement already satisfied: urllib3!=1.25.0,!=1.25.1,<1.26,>=1.21.1 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from requests<3,>=2.21.0->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0) (1.25.11)
+Requirement already satisfied: certifi>=2017.4.17 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from requests<3,>=2.21.0->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0) (2026.7.22)
+Requirement already satisfied: MarkupSafe>=2.1.1 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from werkzeug>=0.11.15->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0) (2.1.5)
+Collecting zipp>=3.20 (from importlib-metadata>=4.4->markdown>=2.6.8->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading zipp-3.20.2-py3-none-any.whl.metadata (3.7 kB)
+Collecting pyasn1<0.7.0,>=0.6.1 (from pyasn1-modules>=0.2.1->google-auth<2,>=1.6.3->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading pyasn1-0.6.4-py3-none-any.whl.metadata (8.4 kB)
+Collecting oauthlib>=3.0.0 (from requests-oauthlib>=0.7.0->google-auth-oauthlib<0.5,>=0.4.1->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
+  Downloading oauthlib-3.3.1-py3-none-any.whl.metadata (7.9 kB)
+Downloading tensorflow-2.2.0-cp38-cp38-manylinux2010_x86_64.whl (516.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 516.3/516.3 MB 9.6 MB/s eta 0:00:00
+Downloading astunparse-1.6.3-py2.py3-none-any.whl (12 kB)
+Downloading gast-0.3.3-py2.py3-none-any.whl (9.7 kB)
+Downloading absl_py-2.3.1-py3-none-any.whl (135 kB)
+Downloading google_pasta-0.2.0-py3-none-any.whl (57 kB)
+Downloading grpcio-1.70.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (6.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.0/6.0 MB 197.5 MB/s eta 0:00:00
+Downloading h5py-2.10.0-cp38-cp38-manylinux1_x86_64.whl (2.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.9/2.9 MB 190.5 MB/s eta 0:00:00
+Downloading Keras_Preprocessing-1.1.2-py2.py3-none-any.whl (42 kB)
+Downloading opt_einsum-3.4.0-py3-none-any.whl (71 kB)
+Downloading tensorboard-2.2.2-py3-none-any.whl (3.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.0/3.0 MB 29.9 MB/s eta 0:00:00
+Downloading tensorflow_estimator-2.2.0-py2.py3-none-any.whl (454 kB)
+Downloading termcolor-2.4.0-py3-none-any.whl (7.7 kB)
+Downloading wrapt-2.0.1-cp38-cp38-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (118 kB)
+Downloading google_auth-1.35.0-py2.py3-none-any.whl (152 kB)
+Downloading google_auth_oauthlib-0.4.6-py2.py3-none-any.whl (18 kB)
+Downloading Markdown-3.7-py3-none-any.whl (106 kB)
+Downloading tensorboard_plugin_wit-1.8.1-py3-none-any.whl (781 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 781.3/781.3 kB 117.2 MB/s eta 0:00:00
+Downloading cachetools-4.2.4-py3-none-any.whl (10 kB)
+Downloading importlib_metadata-8.5.0-py3-none-any.whl (26 kB)
+Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl (24 kB)
+Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+Downloading oauthlib-3.3.1-py3-none-any.whl (160 kB)
+Downloading pyasn1-0.6.4-py3-none-any.whl (84 kB)
+Downloading zipp-3.20.2-py3-none-any.whl (9.2 kB)
+Installing collected packages: tensorflow-estimator, tensorboard-plugin-wit, zipp, wrapt, termcolor, pyasn1, opt-einsum, oauthlib, keras-preprocessing, h5py, grpcio, google-pasta, gast, cachetools, astunparse, absl-py, rsa, requests-oauthlib, pyasn1-modules, importlib-metadata, markdown, google-auth, google-auth-oauthlib, tensorboard, tensorflow
+Successfully installed absl-py-2.3.1 astunparse-1.6.3 cachetools-4.2.4 gast-0.3.3 google-auth-1.35.0 google-auth-oauthlib-0.4.6 google-pasta-0.2.0 grpcio-1.70.0 h5py-2.10.0 importlib-metadata-8.5.0 keras-preprocessing-1.1.2 markdown-3.7 oauthlib-3.3.1 opt-einsum-3.4.0 pyasn1-0.6.4 pyasn1-modules-0.4.2 requests-oauthlib-2.0.0 rsa-4.9.1 tensorboard-2.2.2 tensorboard-plugin-wit-1.8.1 tensorflow-2.2.0 tensorflow-estimator-2.2.0 termcolor-2.4.0 wrapt-2.0.1 zipp-3.20.2
 
 [notice] A new release of pip is available: 24.3.1 -> 25.0.1
 [notice] To update, run: pip install --upgrade pip
@@ -207,4 +285,5 @@ Successfully installed onnx-1.12.0
 F2_PYTHON 3.8.18 (default, Dec 12 2024, 19:15:02) 
 [GCC 11.4.0]
 F2_RKNN_IMPORT /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/__init__.py
-F2_ONNX_VERSION 1.12.0
+F2_ONNX_VERSION 1.10.0
+F2_TENSORFLOW_VERSION 2.2.0
