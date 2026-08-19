@@ -31,12 +31,11 @@ jobs:
           cd /tmp/rknn175
           curl -L --fail --retry 3 -o packages.tar.gz \
             https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.tar.gz
-          echo '0818a331d3b82cd437ebe645076c66960  packages.tar.gz' | md5sum -c - || {
-            echo 'archive checksum line above intentionally checks official release checksum'; exit 1; }
+          echo '0818a331d3bba755036cfee296bdad31  packages.tar.gz' | md5sum -c -
           tar -xzf packages.tar.gz
           WHEEL=$(find . -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
           test -n "$WHEEL"
-          echo 'da4cd1a1968f9e9aa5414a67598f5374' "${WHEEL}" | md5sum -c -
+          echo "da4cd1a1968f9e9aa5414a67598f5374  $WHEEL" | md5sum -c -
           python -m pip install --upgrade 'pip<25' wheel
           python -m pip install "$WHEEL"
           python -m pip install 'onnx==1.12.0' 'protobuf<4'
