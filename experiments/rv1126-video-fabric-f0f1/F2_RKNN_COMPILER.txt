@@ -58,13 +58,13 @@ D connect Relu_relu0_5 0  ~ Conv_depthwise3x3_4 0[0m
 D connect Conv_conv_in_6 0  ~ Relu_relu0_5 0[0m
 D connect input_7 0  ~ Conv_conv_in_6 0[0m
 D connect Add_residual_add_1 0  ~ attach_Add_residual_add/out0_0 0[0m
-2026-08-19 14:46:19.223283: I tensorflow/core/platform/cpu_feature_guard.cc:143] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
-2026-08-19 14:46:19.227236: I tensorflow/core/platform/profile_utils/cpu_utils.cc:102] CPU Frequency: 2445430000 Hz
-2026-08-19 14:46:19.227536: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x7f297c000b70 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
-2026-08-19 14:46:19.227553: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
-2026-08-19 14:46:19.228679: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
-2026-08-19 14:46:19.228695: E tensorflow/stream_executor/cuda/cuda_driver.cc:313] failed call to cuInit: UNKNOWN ERROR (303)
-2026-08-19 14:46:19.228714: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (runnervmp9m8c): /proc/driver/nvidia/version does not exist
+2026-08-19 14:49:33.870724: I tensorflow/core/platform/cpu_feature_guard.cc:143] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 AVX512F FMA
+2026-08-19 14:49:33.874089: I tensorflow/core/platform/profile_utils/cpu_utils.cc:102] CPU Frequency: 2596145000 Hz
+2026-08-19 14:49:33.874298: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x7efb34000b70 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2026-08-19 14:49:33.874313: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2026-08-19 14:49:33.875429: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.18/x64/lib
+2026-08-19 14:49:33.875441: E tensorflow/stream_executor/cuda/cuda_driver.cc:313] failed call to cuInit: UNKNOWN ERROR (303)
+2026-08-19 14:49:33.875461: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (runnervmp9m8c): /proc/driver/nvidia/version does not exist
 D Process input_7 ...[0m
 D RKNN output shape(input): (1 64 64 3)[0m
 D Tensor @input_7:out0 type: float32[0m
@@ -312,49 +312,87 @@ I Analyze activation range of layer: Conv_conv_out_2[0m
 I Analyze activation range of layer: Add_residual_add_1[0m
 I Analyze activation range of layer: attach_Add_residual_add/out0_0[0m
 I Running 1 iterations[0m
-[33mW Invalid format detected in the input file "/home/runner/work/binary-analysis-workflow/binary-analysis-workflow/experiments/rv1126-video-fabric-f0f1/f2_dataset.txt", exiting.[0m
-[31mE Catch exception when building RKNN model![0m
-[31mE Traceback (most recent call last):[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/client/session.py", line 1365, in _do_call[0m
-[31mE     return fn(*args)[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/client/session.py", line 1349, in _run_fn[0m
-[31mE     return self._call_tf_sessionrun(options, feed_dict, fetch_list,[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/client/session.py", line 1441, in _call_tf_sessionrun[0m
-[31mE     return tf_session.TF_SessionRun_wrapper(self._session, options, feed_dict,[0m
-[31mE tensorflow.python.framework.errors_impl.OutOfRangeError: FIFOQueue '_0_fifo_queue' is closed and has insufficient elements (requested 1, current size 0)[0m
-[31mE 	 [[{{node fifo_queue_Dequeue}}]][0m
-[31mE During handling of the above exception, another exception occurred:[0m
-[31mE Traceback (most recent call last):[0m
-[31mE   File "rknn/base/RKNNlib/RKNN_session.py", line 37, in rknn.base.RKNNlib.RKNN_session.RKNNSession.run[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/client/session.py", line 957, in run[0m
-[31mE     result = self._run(None, fetches, feed_dict, options_ptr,[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/client/session.py", line 1180, in _run[0m
-[31mE     results = self._do_run(handle, final_targets, final_fetches,[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/client/session.py", line 1358, in _do_run[0m
-[31mE     return self._do_call(_run_fn, feeds, fetches, targets, options,[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/client/session.py", line 1384, in _do_call[0m
-[31mE     raise type(e)(node_def, op, message)[0m
-[31mE tensorflow.python.framework.errors_impl.OutOfRangeError: FIFOQueue '_0_fifo_queue' is closed and has insufficient elements (requested 1, current size 0)[0m
-[31mE 	 [[node fifo_queue_Dequeue (defined at /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/api/rknn.py:290) ]][0m
-[31mE Original stack trace for 'fifo_queue_Dequeue':[0m
-[31mE   File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 31, in <module>[0m
-[31mE     compile_one(True, 'rv1126_tiny_residual_f2_int8.rknn')[0m
-[31mE   File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 21, in compile_one[0m
-[31mE     ret = rknn.build(do_quantization=quantized, dataset=DATA)[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/api/rknn.py", line 290, in build[0m
-[31mE     ret = self.rknn_base.build(do_quantization=do_quantization, dataset=dataset, pack_vdata=pre_compile,[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/ops/data_flow_ops.py", line 444, in dequeue[0m
-[31mE     ret = gen_data_flow_ops.queue_dequeue_v2([0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/ops/gen_data_flow_ops.py", line 3793, in queue_dequeue_v2[0m
-[31mE     _, _, _op, _outputs = _op_def_library._apply_op_helper([0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/framework/op_def_library.py", line 742, in _apply_op_helper[0m
-[31mE     op = g._create_op_internal(op_type_name, inputs, dtypes=None,[0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/framework/ops.py", line 3319, in _create_op_internal[0m
-[31mE     ret = Operation([0m
-[31mE   File "/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/tensorflow/python/framework/ops.py", line 1791, in __init__[0m
-[31mE     self._traceback = tf_stack.extract_stack()[0m
-[31mE Please feedback the detailed log file <log_feedback_to_the_rknn_toolkit_dev_team.log> to the RKNN Toolkit development team.[0m
-[31mE You can also check github issues: https://github.com/rockchip-linux/rknn-toolkit/issues[0m
+D 0(100.00%), Queue size 8[0m
+D Calculate min/max for tensor: @Add_residual_add_1:out0 of layer: Add_residual_add_1[0m
+I Queue cancelled.[0m
+D Quantize tensor @Add_residual_add_1:out0.[0m
+D Calculate min/max for tensor: @Conv_conv_out_2:out0 of layer: Conv_conv_out_2[0m
+D Quantize tensor @Conv_conv_out_2:out0.[0m
+D Calculate min/max for tensor: @Relu_relu1_3:out0 of layer: Relu_relu1_3[0m
+D Quantize tensor @Relu_relu1_3:out0.[0m
+D Calculate min/max for tensor: @Conv_depthwise3x3_4:out0 of layer: Conv_depthwise3x3_4[0m
+D Quantize tensor @Conv_depthwise3x3_4:out0.[0m
+D Calculate min/max for tensor: @Relu_relu0_5:out0 of layer: Relu_relu0_5[0m
+D Quantize tensor @Relu_relu0_5:out0.[0m
+D Calculate min/max for tensor: @Conv_conv_in_6:out0 of layer: Conv_conv_in_6[0m
+D Quantize tensor @Conv_conv_in_6:out0.[0m
+D Calculate min/max for tensor: @input_7:out0 of layer: input_7[0m
+D Quantize tensor @input_7:out0.[0m
+D Calculate min/max for tensor: @Conv_conv_out_2:weight of layer: Conv_conv_out_2[0m
+D Quantize tensor @Conv_conv_out_2:weight.[0m
+D Calculate min/max for tensor: @Conv_depthwise3x3_4:weight of layer: Conv_depthwise3x3_4[0m
+D Quantize tensor @Conv_depthwise3x3_4:weight.[0m
+D Calculate min/max for tensor: @Conv_conv_in_6:weight of layer: Conv_conv_in_6[0m
+D Quantize tensor @Conv_conv_in_6:weight.[0m
+D Quantize tensor @Conv_conv_out_2:bias.[0m
+D Quantize tensor @Conv_depthwise3x3_4:bias.[0m
+D Quantize tensor @Conv_conv_in_6:bias.[0m
+I Clean.[0m
+D Optimizing network with align_quantize, broadcast_quantize, qnt_adjust_coef, qnt_adjust_param[0m
+D Quantize tensor(@attach_Add_residual_add/out0_0:out0) with tensor(@Add_residual_add_1:out0)[0m
+I Conv_conv_in_6 merged relu nexted.[0m
+I Conv_depthwise3x3_4 merged relu nexted.[0m
+I Quantization complete.[0m
+I End quantization...[0m
+D import clients finished[0m
+I Load net...[0m
+I Load data...[0m
+I Load quantization tensor table[0m
+D Optimizing network with Qlayer_merge, align_quantize, broadcast_quantize[0m
+D Relu_relu1_3 excute before next buffer op[0m
+D Relu_relu0_5 excute before next buffer op[0m
+I Load input meta[0m
+D Process input_7 ...[0m
+D RKNN output shape(input): (1 64 64 3)[0m
+D Tensor @input_7:out0 type: asymmetric_affine[0m
+D Process Conv_conv_in_6 ...[0m
+D RKNN output shape(convolution): (1 64 64 16)[0m
+D Tensor @Conv_conv_in_6:out0 type: asymmetric_affine[0m
+D Process Conv_depthwise3x3_4 ...[0m
+D RKNN output shape(convolution): (1 64 64 16)[0m
+D Tensor @Conv_depthwise3x3_4:out0 type: asymmetric_affine[0m
+D Process Conv_conv_out_2 ...[0m
+D RKNN output shape(convolution): (1 64 64 3)[0m
+D Tensor @Conv_conv_out_2:out0 type: asymmetric_affine[0m
+D Process Add_residual_add_1 ...[0m
+D RKNN output shape(add): (1 64 64 3)[0m
+D Tensor @Add_residual_add_1:out0 type: asymmetric_affine[0m
+D Process attach_Add_residual_add/out0_0 ...[0m
+D RKNN output shape(output): (1 64 64 3)[0m
+D Tensor @attach_Add_residual_add/out0_0:out0 type: asymmetric_affine[0m
+I Build rv1126_tiny_residual_f2 complete.[0m
+I Initialzing network optimizer by /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/config/npu_config/PUMA ...[0m
+D Optimizing network with merge_ximum, qnt_adjust_coef, multiply_transform, add_extra_io, format_input_ops, auto_fill_zero_bias, conv_kernel_transform, twod_op_transform, strip_op, extend_unstack_split, merge_layer, transform_layer, broadcast_op, strip_op, auto_fill_reshape_zero, adjust_output_attrs, insert_dtype_converter[0m
+I Start T2C Switcher...[0m
+D Optimizing network with broadcast_op, t2c_fc[0m
+I End T2C Switcher...[0m
+D Optimizing network with merge_ximum, qnt_adjust_coef, multiply_transform, add_extra_io, format_input_ops, auto_fill_zero_bias, conv_kernel_transform, twod_op_transform, strip_op, extend_unstack_split, merge_layer, transform_layer, broadcast_op, strip_op, auto_fill_reshape_zero, adjust_output_attrs, insert_dtype_converter[0m
+D Optimizing network with conv_1xn_transform, proposal_opt, c2drv_convert_axis, c2drv_convert_shape, c2drv_convert_array, c2drv_cast_dtype, c2drv_trans_data[0m
+I Building data ...[0m
+I Packing data ...[0m
+D Packing Conv_conv_in_6 ...[0m
+D Quantize @Conv_conv_in_6:bias to asymmetric_affine.[0m
+D Quantize @Conv_conv_in_6:weight to asymmetric_affine.[0m
+D Packing Conv_conv_out_2 ...[0m
+D Quantize @Conv_conv_out_2:bias to asymmetric_affine.[0m
+D Quantize @Conv_conv_out_2:weight to asymmetric_affine.[0m
+D Packing Conv_depthwise3x3_4 ...[0m
+D Quantize @Conv_depthwise3x3_4:bias to asymmetric_affine.[0m
+D Quantize @Conv_depthwise3x3_4:weight to asymmetric_affine.[0m
+D Disable rknn op statistic.[0m
+D output tensor id = 0, name = Add_residual_add/out0_0[0m
+D input tensor id = 1, name = input_7[0m
+I Build config finished.[0m
 F2_CONFIG_BEGIN quantized=0
 F2_LOAD_ONNX_BEGIN
 F2_BUILD_BEGIN
@@ -363,9 +401,7 @@ F2_RKNN_BUILD_PASS quantized=0 output=rv1126_tiny_residual_f2_fp.rknn
 F2_CONFIG_BEGIN quantized=1
 F2_LOAD_ONNX_BEGIN
 F2_BUILD_BEGIN
-Traceback (most recent call last):
-  File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 31, in <module>
-    compile_one(True, 'rv1126_tiny_residual_f2_int8.rknn')
-  File "experiments/rv1126-video-fabric-f0f1/f2_convert_rknn.py", line 22, in compile_one
-    if ret != 0: raise RuntimeError(f'build ret={ret}')
-RuntimeError: build ret=-1
+F2_EXPORT_BEGIN
+F2_RKNN_BUILD_PASS quantized=1 output=rv1126_tiny_residual_f2_int8.rknn
+RV1126_F2_OFFLINE_COMPILER_ACCEPTANCE_PASS
+F2_SCOPE software compiler/operator contract only; no RV1126 silicon timing or NPU-utilization proof
