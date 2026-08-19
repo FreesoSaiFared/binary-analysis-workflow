@@ -1,0 +1,72 @@
+name: Prove RV1126 generative video fabric F0 F1
+
+on:
+  push:
+    branches:
+      - rk3588-rv1126-video-fabric-f0f1
+    paths:
+      - 'experiments/rv1126-video-fabric-f0f1/frankenfabric_video_f0f1.py'
+      - '.github/workflows/stage-rv1126-video-f0f1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  f0f1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rk3588-rv1126-video-fabric-f0f1
+          fetch-depth: 0
+      - name: Run F0 F1 sweeps
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          python3 "$D/frankenfabric_video_f0f1.py" --outdir "$D" | tee "$D/F0F1_RUN.txt"
+          python3 - <<'PY'
+          import csv,json,pathlib
+          d=pathlib.Path('experiments/rv1126-video-fabric-f0f1')
+          s=json.loads((d/'f0f1_summary.json').read_text())
+          assert s['status']=='SOFTWARE_SIMULATION_ONLY'
+          assert s['f0_bandwidth_rows']==162
+          assert s['f0_utilization_rows']==54
+          assert s['f1_rows']==54
+          assert all(x['deadline_misses']==0 for x in s['median_encoded'])
+          expect={(5,4):(50,200),(5,8):(50,200),(5,16):(50,400),
+                  (10,4):(12.5,200),(10,8):(12.5,200),(10,16):(12.5,200),
+                  (15,4):(25,200),(15,8):(25,200),(15,16):(25,200)}
+          got={(x['source_fps'],x['nodes']):(x['encoded_crossover_mib_s'],x['raw_crossover_mib_s']) for x in s['crossovers']}
+          assert got==expect,(got,expect)
+          rows=list(csv.DictReader((d/'f0_utilization_sensitivity.csv').open()))
+          def row(sf,n,u):
+              return next(r for r in rows if int(r['source_fps'])==sf and int(r['nodes'])==n and abs(float(r['effective_utilization'])-u)<1e-9)
+          assert int(row(5,4,.2)['deadline_misses'])>0
+          assert int(row(10,4,.2)['deadline_misses'])>0
+          assert int(row(15,4,.2)['deadline_misses'])==0
+          print('RV1126_F0F1_ASSERTIONS_PASS')
+          PY
+          sha256sum \
+            "$D/frankenfabric_video_f0f1.py" \
+            "$D/RV1126_GENERATIVE_VIDEO_FABRIC_F0.md" \
+            "$D/f0_bandwidth_sweep.csv" \
+            "$D/f0_utilization_sensitivity.csv" \
+            "$D/f1_compute_envelope.csv" \
+            "$D/f0f1_summary.json" \
+            "$D/F0F1_RUN.txt" | tee "$D/SHA256SUMS.txt"
+      - name: Commit generated evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$D/RV1126_GENERATIVE_VIDEO_FABRIC_F0.md" "$D/f0_bandwidth_sweep.csv" "$D/f0_utilization_sensitivity.csv" "$D/f1_compute_envelope.csv" "$D/f0f1_summary.json" "$D/F0F1_RUN.txt" "$D/SHA256SUMS.txt"
+          if git diff --cached --quiet; then
+            echo 'Evidence already current.'
+          else
+            git commit -m 'Freeze RV1126 video fabric F0 F1 sweep evidence'
+            git push origin HEAD:rk3588-rv1126-video-fabric-f0f1
+          fi
