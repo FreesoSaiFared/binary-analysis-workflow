@@ -1,0 +1,81 @@
+name: Probe RV1126 RKNN 1.7.5 F2 operator contract
+
+on:
+  push:
+    branches:
+      - rk3588-rv1126-video-fabric-f0f1
+    paths:
+      - 'experiments/rv1126-video-fabric-f0f1/f2_*'
+      - '.github/workflows/stage-rv1126-video-f2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rk1126-f2:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rk3588-rv1126-video-fabric-f0f1
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - name: Install official RKNN Toolkit 1.7.5 x86_64 compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rknn175
+          cd /tmp/rknn175
+          curl -L --fail --retry 3 -o packages.tar.gz \
+            https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.tar.gz
+          echo '0818a331d3b82cd437ebe645076c66960  packages.tar.gz' | md5sum -c - || {
+            echo 'archive checksum line above intentionally checks official release checksum'; exit 1; }
+          tar -xzf packages.tar.gz
+          WHEEL=$(find . -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
+          test -n "$WHEEL"
+          echo 'da4cd1a1968f9e9aa5414a67598f5374' "${WHEEL}" | md5sum -c -
+          python -m pip install --upgrade 'pip<25' wheel
+          python -m pip install "$WHEEL"
+          python -m pip install 'onnx==1.12.0' 'protobuf<4'
+          python - <<'PY'
+          import sys, rknn, onnx
+          print('F2_PYTHON',sys.version)
+          print('F2_RKNN_IMPORT',rknn.__file__)
+          print('F2_ONNX_VERSION',onnx.__version__)
+          PY
+      - name: Generate fixed-shape graph and compile FP plus INT8 for RV1126
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          python "$D/f2_make_onnx.py" | tee "$D/F2_MODEL_BUILD.txt"
+          python "$D/f2_convert_rknn.py" 2>&1 | tee "$D/F2_RKNN_COMPILER.txt"
+          grep -q 'F2_RKNN_BUILD_PASS quantized=0' "$D/F2_RKNN_COMPILER.txt"
+          grep -q 'F2_RKNN_BUILD_PASS quantized=1' "$D/F2_RKNN_COMPILER.txt"
+          grep -q 'RV1126_F2_OFFLINE_COMPILER_ACCEPTANCE_PASS' "$D/F2_RKNN_COMPILER.txt"
+          test -s "$D/rv1126_tiny_residual_f2_fp.rknn"
+          test -s "$D/rv1126_tiny_residual_f2_int8.rknn"
+          sha256sum \
+            "$D/f2_operator_contract.csv" "$D/f2_make_onnx.py" "$D/f2_convert_rknn.py" \
+            "$D/rv1126_tiny_residual_f2.onnx" "$D/rv1126_tiny_residual_f2_fp.rknn" \
+            "$D/rv1126_tiny_residual_f2_int8.rknn" "$D/F2_MODEL_BUILD.txt" "$D/F2_RKNN_COMPILER.txt" \
+            | tee "$D/F2_SHA256SUMS.txt"
+      - name: Freeze F2 compiler artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-video-fabric-f0f1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$D/f2_operator_contract.csv" "$D/f2_make_onnx.py" "$D/f2_convert_rknn.py" \
+                  "$D/rv1126_tiny_residual_f2.onnx" "$D/rv1126_tiny_residual_f2_fp.rknn" \
+                  "$D/rv1126_tiny_residual_f2_int8.rknn" "$D/F2_MODEL_BUILD.txt" "$D/F2_RKNN_COMPILER.txt" "$D/F2_SHA256SUMS.txt"
+          if git diff --cached --quiet; then
+            echo 'F2 evidence already current.'
+          else
+            git commit -m 'Freeze RV1126 F2 offline compiler evidence'
+            git push origin HEAD:rk3588-rv1126-video-fabric-f0f1
+          fi
