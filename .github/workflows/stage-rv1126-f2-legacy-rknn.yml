@@ -47,7 +47,7 @@ jobs:
                     'ops',[n.op_type for n in m.graph.node])
           PY
 
-      - name: Install exact legacy RKNN-Toolkit 1.7.5 x86_64 CPython 3.8 wheel
+      - name: Install exact legacy RKNN-Toolkit 1.7.5 environment
         shell: bash
         run: |
           set -euxo pipefail
@@ -60,9 +60,16 @@ jobs:
           WHEEL=$(find packages -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
           test -n "$WHEEL"
           python -m pip install "$WHEEL"
+          # Rockchip's separate Ubuntu20.04/Python3.8 CPU requirements list
+          # TensorFlow 2.2.0. RKNN() imports Acuity's xtf module even for ONNX,
+          # so install that exact historical dependency before constructing RKNN.
+          python -m pip install 'tensorflow==2.2.0'
           python - <<'PY'
+          import tensorflow as tf
           from rknn.api import RKNN
-          print('RKNN_TOOLKIT_1_7_5_IMPORT_PASS',RKNN)
+          x=RKNN(verbose=True)
+          x.release()
+          print('RKNN_TOOLKIT_1_7_5_CONSTRUCTOR_PASS tensorflow='+tf.__version__)
           PY
 
       - name: Run RV1126 graph-conversion probes
