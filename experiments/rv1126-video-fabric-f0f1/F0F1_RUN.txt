@@ -1,0 +1,62 @@
+{
+  "status": "F0_F1_PASS",
+  "f0_bandwidth_rows": 162,
+  "f0_utilization_rows": 54,
+  "f1_rows": 54,
+  "crossovers": [
+    {
+      "source_fps": 5,
+      "nodes": 4,
+      "encoded_crossover_mib_s": 50,
+      "raw_crossover_mib_s": 200
+    },
+    {
+      "source_fps": 5,
+      "nodes": 8,
+      "encoded_crossover_mib_s": 50,
+      "raw_crossover_mib_s": 200
+    },
+    {
+      "source_fps": 5,
+      "nodes": 16,
+      "encoded_crossover_mib_s": 50,
+      "raw_crossover_mib_s": 400
+    },
+    {
+      "source_fps": 10,
+      "nodes": 4,
+      "encoded_crossover_mib_s": 12.5,
+      "raw_crossover_mib_s": 200
+    },
+    {
+      "source_fps": 10,
+      "nodes": 8,
+      "encoded_crossover_mib_s": 12.5,
+      "raw_crossover_mib_s": 200
+    },
+    {
+      "source_fps": 10,
+      "nodes": 16,
+      "encoded_crossover_mib_s": 12.5,
+      "raw_crossover_mib_s": 200
+    },
+    {
+      "source_fps": 15,
+      "nodes": 4,
+      "encoded_crossover_mib_s": 25,
+      "raw_crossover_mib_s": 200
+    },
+    {
+      "source_fps": 15,
+      "nodes": 8,
+      "encoded_crossover_mib_s": 25,
+      "raw_crossover_mib_s": 200
+    },
+    {
+      "source_fps": 15,
+      "nodes": 16,
+      "encoded_crossover_mib_s": 25,
+      "raw_crossover_mib_s": 200
+    }
+  ]
+}
