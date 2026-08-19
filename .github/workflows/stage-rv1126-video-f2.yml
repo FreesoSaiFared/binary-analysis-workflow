@@ -23,58 +23,130 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.8'
-      - name: Install official RKNN Toolkit 1.7.5 x86_64 compiler
+
+      - name: Install official RKNN Toolkit 1.7.5 x86_64 compiler with durable diagnostics
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p /tmp/rknn175
-          cd /tmp/rknn175
-          curl -L --fail --retry 3 -o packages.tar.gz \
-            https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.tar.gz
-          echo '0818a331d3bba755036cfee296bdad31  packages.tar.gz' | md5sum -c -
-          tar -xzf packages.tar.gz
-          WHEEL=$(find . -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
-          test -n "$WHEEL"
-          echo "da4cd1a1968f9e9aa5414a67598f5374  $WHEEL" | md5sum -c -
-          python -m pip install --upgrade 'pip<25' wheel
-          python -m pip install "$WHEEL"
-          python -m pip install 'onnx==1.12.0' 'protobuf<4'
-          python - <<'PY'
+          D="$GITHUB_WORKSPACE/experiments/rv1126-video-fabric-f0f1"
+          set +e
+          (
+            set -euxo pipefail
+            rm -rf /tmp/rknn175 && mkdir -p /tmp/rknn175
+            cd /tmp/rknn175
+            curl -L --fail --retry 3 -o packages.tar.gz \
+              https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.tar.gz
+            echo '0818a331d3bba755036cfee296bdad31  packages.tar.gz' | md5sum -c -
+            tar -xzf packages.tar.gz
+            WHEEL=$(find . -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
+            test -n "$WHEEL"
+            echo "da4cd1a1968f9e9aa5414a67598f5374  $WHEEL" | md5sum -c -
+            python -m pip install --upgrade 'pip<25' wheel
+            python -m pip install "$WHEEL"
+            python -m pip install 'onnx==1.12.0' 'protobuf<4'
+            python - <<'PY'
           import sys, rknn, onnx
           print('F2_PYTHON',sys.version)
           print('F2_RKNN_IMPORT',rknn.__file__)
           print('F2_ONNX_VERSION',onnx.__version__)
           PY
-      - name: Generate fixed-shape graph and compile FP plus INT8 for RV1126
+          ) >"$D/F2_INSTALL.txt" 2>&1
+          rc=$?
+          echo "$rc" > "$D/F2_INSTALL_EXIT.txt"
+          cat "$D/F2_INSTALL.txt"
+          echo "F2_INSTALL_EXIT=$rc"
+          exit 0
+
+      - name: Generate fixed-shape graph and attempt FP plus INT8 compile
         shell: bash
         run: |
-          set -euo pipefail
           D=experiments/rv1126-video-fabric-f0f1
-          python "$D/f2_make_onnx.py" | tee "$D/F2_MODEL_BUILD.txt"
-          python "$D/f2_convert_rknn.py" 2>&1 | tee "$D/F2_RKNN_COMPILER.txt"
-          grep -q 'F2_RKNN_BUILD_PASS quantized=0' "$D/F2_RKNN_COMPILER.txt"
-          grep -q 'F2_RKNN_BUILD_PASS quantized=1' "$D/F2_RKNN_COMPILER.txt"
-          grep -q 'RV1126_F2_OFFLINE_COMPILER_ACCEPTANCE_PASS' "$D/F2_RKNN_COMPILER.txt"
-          test -s "$D/rv1126_tiny_residual_f2_fp.rknn"
-          test -s "$D/rv1126_tiny_residual_f2_int8.rknn"
-          sha256sum \
-            "$D/f2_operator_contract.csv" "$D/f2_make_onnx.py" "$D/f2_convert_rknn.py" \
-            "$D/rv1126_tiny_residual_f2.onnx" "$D/rv1126_tiny_residual_f2_fp.rknn" \
-            "$D/rv1126_tiny_residual_f2_int8.rknn" "$D/F2_MODEL_BUILD.txt" "$D/F2_RKNN_COMPILER.txt" \
-            | tee "$D/F2_SHA256SUMS.txt"
-      - name: Freeze F2 compiler artifacts
+          set +e
+          install_rc=$(cat "$D/F2_INSTALL_EXIT.txt")
+          if [ "$install_rc" -ne 0 ]; then
+            echo 'F2_COMPILE_SKIPPED installation_failed' | tee "$D/F2_RKNN_COMPILER.txt"
+            echo 125 > "$D/F2_COMPILE_EXIT.txt"
+            exit 0
+          fi
+          python "$D/f2_make_onnx.py" >"$D/F2_MODEL_BUILD.txt" 2>&1
+          model_rc=$?
+          if [ "$model_rc" -ne 0 ]; then
+            cat "$D/F2_MODEL_BUILD.txt"
+            echo "F2_MODEL_EXIT=$model_rc" > "$D/F2_RKNN_COMPILER.txt"
+            echo "$model_rc" > "$D/F2_COMPILE_EXIT.txt"
+            exit 0
+          fi
+          python "$D/f2_convert_rknn.py" >"$D/F2_RKNN_COMPILER.txt" 2>&1
+          rc=$?
+          echo "$rc" > "$D/F2_COMPILE_EXIT.txt"
+          cat "$D/F2_MODEL_BUILD.txt"
+          cat "$D/F2_RKNN_COMPILER.txt"
+          echo "F2_COMPILE_EXIT=$rc"
+          exit 0
+
+      - name: Materialize F2 status and hashes
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          D=experiments/rv1126-video-fabric-f0f1
+          install_rc=$(cat "$D/F2_INSTALL_EXIT.txt" 2>/dev/null || echo 126)
+          compile_rc=$(cat "$D/F2_COMPILE_EXIT.txt" 2>/dev/null || echo 126)
+          pass=0
+          if [ "$install_rc" -eq 0 ] && [ "$compile_rc" -eq 0 ] \
+             && grep -q 'F2_RKNN_BUILD_PASS quantized=0' "$D/F2_RKNN_COMPILER.txt" \
+             && grep -q 'F2_RKNN_BUILD_PASS quantized=1' "$D/F2_RKNN_COMPILER.txt" \
+             && grep -q 'RV1126_F2_OFFLINE_COMPILER_ACCEPTANCE_PASS' "$D/F2_RKNN_COMPILER.txt" \
+             && test -s "$D/rv1126_tiny_residual_f2_fp.rknn" \
+             && test -s "$D/rv1126_tiny_residual_f2_int8.rknn"; then
+            pass=1
+          fi
+          python - "$install_rc" "$compile_rc" "$pass" > "$D/F2_STATUS.json" <<'PY'
+          import json,sys
+          install_rc,compile_rc,passed=map(int,sys.argv[1:])
+          print(json.dumps({
+            'scope':'RKNN Toolkit 1.7.5 offline compiler/operator contract for target rv1126',
+            'install_exit':install_rc,
+            'compile_exit':compile_rc,
+            'acceptance_pass':bool(passed),
+            'silicon_timing_proven':False,
+            'npu_native_execution_proven':False
+          },indent=2))
+          PY
+          files=("$D/f2_operator_contract.csv" "$D/f2_make_onnx.py" "$D/f2_convert_rknn.py" \
+                 "$D/F2_INSTALL.txt" "$D/F2_INSTALL_EXIT.txt" "$D/F2_COMPILE_EXIT.txt" "$D/F2_STATUS.json")
+          test -f "$D/F2_MODEL_BUILD.txt" && files+=("$D/F2_MODEL_BUILD.txt")
+          test -f "$D/F2_RKNN_COMPILER.txt" && files+=("$D/F2_RKNN_COMPILER.txt")
+          test -f "$D/rv1126_tiny_residual_f2.onnx" && files+=("$D/rv1126_tiny_residual_f2.onnx")
+          test -f "$D/rv1126_tiny_residual_f2_fp.rknn" && files+=("$D/rv1126_tiny_residual_f2_fp.rknn")
+          test -f "$D/rv1126_tiny_residual_f2_int8.rknn" && files+=("$D/rv1126_tiny_residual_f2_int8.rknn")
+          sha256sum "${files[@]}" > "$D/F2_SHA256SUMS.txt"
+          cat "$D/F2_STATUS.json"
+          cat "$D/F2_SHA256SUMS.txt"
+
+      - name: Commit pass or failure evidence
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
           D=experiments/rv1126-video-fabric-f0f1
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "$D/f2_operator_contract.csv" "$D/f2_make_onnx.py" "$D/f2_convert_rknn.py" \
-                  "$D/rv1126_tiny_residual_f2.onnx" "$D/rv1126_tiny_residual_f2_fp.rknn" \
-                  "$D/rv1126_tiny_residual_f2_int8.rknn" "$D/F2_MODEL_BUILD.txt" "$D/F2_RKNN_COMPILER.txt" "$D/F2_SHA256SUMS.txt"
+          git add "$D"/F2_*.txt "$D/F2_STATUS.json" "$D/F2_SHA256SUMS.txt" \
+                  "$D/f2_operator_contract.csv" "$D/f2_make_onnx.py" "$D/f2_convert_rknn.py"
+          for p in "$D/rv1126_tiny_residual_f2.onnx" "$D/rv1126_tiny_residual_f2_fp.rknn" "$D/rv1126_tiny_residual_f2_int8.rknn"; do
+            test -e "$p" && git add "$p"
+          done
           if git diff --cached --quiet; then
-            echo 'F2 evidence already current.'
+            echo 'F2 diagnostic evidence already current.'
           else
-            git commit -m 'Freeze RV1126 F2 offline compiler evidence'
+            if grep -q '"acceptance_pass": true' "$D/F2_STATUS.json"; then msg='Freeze RV1126 F2 offline compiler PASS evidence'; else msg='Freeze RV1126 F2 compiler failure evidence'; fi
+            git commit -m "$msg"
             git push origin HEAD:rk3588-rv1126-video-fabric-f0f1
           fi
+
+      - name: Enforce F2 verdict after evidence commit
+        if: always()
+        shell: bash
+        run: |
+          D=experiments/rv1126-video-fabric-f0f1
+          grep -q '"acceptance_pass": true' "$D/F2_STATUS.json"
