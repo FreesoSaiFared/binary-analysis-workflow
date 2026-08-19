@@ -1,0 +1,8 @@
+{
+  "scope": "RKNN Toolkit 1.7.5 offline compiler/operator contract for target rv1126",
+  "install_exit": 0,
+  "compile_exit": 1,
+  "acceptance_pass": false,
+  "silicon_timing_proven": false,
+  "npu_native_execution_proven": false
+}

@@ -1,0 +1,3 @@
+F2_ONNX_CREATED /home/runner/work/binary-analysis-workflow/binary-analysis-workflow/experiments/rv1126-video-fabric-f0f1/rv1126_tiny_residual_f2.onnx
+F2_OPSET 11 IR 6
+F2_NODES Conv,Relu,Conv,Relu,Conv,Add

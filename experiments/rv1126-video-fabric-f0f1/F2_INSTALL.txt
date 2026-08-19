@@ -1,0 +1,210 @@
++ rm -rf /tmp/rknn175
++ mkdir -p /tmp/rknn175
++ cd /tmp/rknn175
++ curl -L --fail --retry 3 -o packages.tar.gz https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  1  678M    1 7821k    0     0  9920k      0  0:01:09 --:--:--  0:01:09 9920k 21  678M   21  144M    0     0  80.6M      0  0:00:08  0:00:01  0:00:07  136M 48  678M   48  326M    0     0   117M      0  0:00:05  0:00:02  0:00:03  159M 75  678M   75  514M    0     0   135M      0  0:00:04  0:00:03  0:00:01  168M100  678M  100  678M    0     0   145M      0  0:00:04  0:00:04 --:--:--  172M
++ echo '0818a331d3bba755036cfee296bdad31  packages.tar.gz'
++ md5sum -c -
+packages.tar.gz: OK
++ tar -xzf packages.tar.gz
+++ find . -name rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl -print -quit
++ WHEEL=./packages/rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl
++ test -n ./packages/rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl
++ echo 'da4cd1a1968f9e9aa5414a67598f5374  ./packages/rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl'
++ md5sum -c -
+./packages/rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl: OK
++ python -m pip install --upgrade 'pip<25' wheel
+Collecting pip<25
+  Downloading pip-24.3.1-py3-none-any.whl.metadata (3.7 kB)
+Collecting wheel
+  Downloading wheel-0.45.1-py3-none-any.whl.metadata (2.3 kB)
+Downloading pip-24.3.1-py3-none-any.whl (1.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 4.2 MB/s eta 0:00:00
+Downloading wheel-0.45.1-py3-none-any.whl (72 kB)
+Installing collected packages: wheel, pip
+  Attempting uninstall: pip
+    Found existing installation: pip 25.0.1
+    Uninstalling pip-25.0.1:
+      Successfully uninstalled pip-25.0.1
+Successfully installed pip-24.3.1 wheel-0.45.1
++ python -m pip install ./packages/rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl
+Processing ./packages/rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl
+Collecting Jinja2==3.0 (from rknn-toolkit==1.7.5)
+  Downloading Jinja2-3.0.0-py3-none-any.whl.metadata (3.5 kB)
+Collecting flask==2.0.2 (from rknn-toolkit==1.7.5)
+  Downloading Flask-2.0.2-py3-none-any.whl.metadata (3.8 kB)
+Collecting flatbuffers==1.10 (from rknn-toolkit==1.7.5)
+  Downloading flatbuffers-1.10-py2.py3-none-any.whl.metadata (337 bytes)
+Collecting matplotlib==3.3.4 (from rknn-toolkit==1.7.5)
+  Downloading matplotlib-3.3.4-cp38-cp38-manylinux1_x86_64.whl.metadata (5.7 kB)
+Collecting networkx==1.11 (from rknn-toolkit==1.7.5)
+  Downloading networkx-1.11-py2.py3-none-any.whl.metadata (1.5 kB)
+Collecting numpy==1.19.5 (from rknn-toolkit==1.7.5)
+  Downloading numpy-1.19.5-cp38-cp38-manylinux2010_x86_64.whl.metadata (2.0 kB)
+Collecting onnx==1.10.0 (from rknn-toolkit==1.7.5)
+  Downloading onnx-1.10.0-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl.metadata (10 kB)
+Collecting onnxoptimizer>=0.1.0 (from rknn-toolkit==1.7.5)
+  Downloading onnxoptimizer-0.3.13-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.2 kB)
+Collecting onnxruntime==1.9.0 (from rknn-toolkit==1.7.5)
+  Downloading onnxruntime-1.9.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.2 kB)
+Collecting opencv-python==4.5.1.48 (from rknn-toolkit==1.7.5)
+  Downloading opencv_python-4.5.1.48-cp38-cp38-manylinux2014_x86_64.whl.metadata (17 kB)
+Collecting ply==3.11 (from rknn-toolkit==1.7.5)
+  Downloading ply-3.11-py2.py3-none-any.whl.metadata (844 bytes)
+Collecting protobuf==3.13.0 (from rknn-toolkit==1.7.5)
+  Downloading protobuf-3.13.0-cp38-cp38-manylinux1_x86_64.whl.metadata (884 bytes)
+Collecting psutil==5.6.2 (from rknn-toolkit==1.7.5)
+  Downloading psutil-5.6.2.tar.gz (432 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting requests==2.22.0 (from rknn-toolkit==1.7.5)
+  Downloading requests-2.22.0-py2.py3-none-any.whl.metadata (5.5 kB)
+Collecting ruamel.yaml==0.15.81 (from rknn-toolkit==1.7.5)
+  Downloading ruamel.yaml-0.15.81.tar.gz (424 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting scipy<=1.4.1,>=1.1.0 (from rknn-toolkit==1.7.5)
+  Downloading scipy-1.4.1-cp38-cp38-manylinux1_x86_64.whl.metadata (2.0 kB)
+Collecting sklearn==0.0 (from rknn-toolkit==1.7.5)
+  Downloading sklearn-0.0.tar.gz (1.1 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting tqdm==4.63.0 (from rknn-toolkit==1.7.5)
+  Downloading tqdm-4.63.0-py2.py3-none-any.whl.metadata (57 kB)
+Collecting Werkzeug>=2.0 (from flask==2.0.2->rknn-toolkit==1.7.5)
+  Downloading werkzeug-3.0.6-py3-none-any.whl.metadata (3.7 kB)
+Collecting itsdangerous>=2.0 (from flask==2.0.2->rknn-toolkit==1.7.5)
+  Downloading itsdangerous-2.2.0-py3-none-any.whl.metadata (1.9 kB)
+Collecting click>=7.1.2 (from flask==2.0.2->rknn-toolkit==1.7.5)
+  Downloading click-8.1.8-py3-none-any.whl.metadata (2.3 kB)
+Collecting MarkupSafe>=2.0.0rc2 (from Jinja2==3.0->rknn-toolkit==1.7.5)
+  Downloading MarkupSafe-2.1.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.0 kB)
+Collecting cycler>=0.10 (from matplotlib==3.3.4->rknn-toolkit==1.7.5)
+  Downloading cycler-0.12.1-py3-none-any.whl.metadata (3.8 kB)
+Collecting kiwisolver>=1.0.1 (from matplotlib==3.3.4->rknn-toolkit==1.7.5)
+  Downloading kiwisolver-1.4.7-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl.metadata (6.3 kB)
+Collecting pillow>=6.2.0 (from matplotlib==3.3.4->rknn-toolkit==1.7.5)
+  Downloading pillow-10.4.0-cp38-cp38-manylinux_2_28_x86_64.whl.metadata (9.2 kB)
+Collecting pyparsing!=2.0.4,!=2.1.2,!=2.1.6,>=2.0.3 (from matplotlib==3.3.4->rknn-toolkit==1.7.5)
+  Downloading pyparsing-3.1.4-py3-none-any.whl.metadata (5.1 kB)
+Collecting python-dateutil>=2.1 (from matplotlib==3.3.4->rknn-toolkit==1.7.5)
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Collecting decorator>=3.4.0 (from networkx==1.11->rknn-toolkit==1.7.5)
+  Downloading decorator-5.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting six (from onnx==1.10.0->rknn-toolkit==1.7.5)
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting typing-extensions>=3.6.2.1 (from onnx==1.10.0->rknn-toolkit==1.7.5)
+  Downloading typing_extensions-4.13.2-py3-none-any.whl.metadata (3.0 kB)
+Requirement already satisfied: setuptools in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from protobuf==3.13.0->rknn-toolkit==1.7.5) (56.0.0)
+Collecting chardet<3.1.0,>=3.0.2 (from requests==2.22.0->rknn-toolkit==1.7.5)
+  Downloading chardet-3.0.4-py2.py3-none-any.whl.metadata (3.2 kB)
+Collecting idna<2.9,>=2.5 (from requests==2.22.0->rknn-toolkit==1.7.5)
+  Downloading idna-2.8-py2.py3-none-any.whl.metadata (8.9 kB)
+Collecting urllib3!=1.25.0,!=1.25.1,<1.26,>=1.21.1 (from requests==2.22.0->rknn-toolkit==1.7.5)
+  Downloading urllib3-1.25.11-py2.py3-none-any.whl.metadata (41 kB)
+Collecting certifi>=2017.4.17 (from requests==2.22.0->rknn-toolkit==1.7.5)
+  Downloading certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
+Collecting scikit-learn (from sklearn==0.0->rknn-toolkit==1.7.5)
+  Downloading scikit_learn-1.3.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+INFO: pip is looking at multiple versions of scikit-learn to determine which version is compatible with other requirements. This could take a while.
+  Downloading scikit_learn-1.3.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+  Downloading scikit_learn-1.3.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+  Downloading scikit_learn-1.2.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+Collecting joblib>=1.1.1 (from scikit-learn->sklearn==0.0->rknn-toolkit==1.7.5)
+  Downloading joblib-1.4.2-py3-none-any.whl.metadata (5.4 kB)
+Collecting threadpoolctl>=2.0.0 (from scikit-learn->sklearn==0.0->rknn-toolkit==1.7.5)
+  Downloading threadpoolctl-3.5.0-py3-none-any.whl.metadata (13 kB)
+Downloading Flask-2.0.2-py3-none-any.whl (95 kB)
+Downloading flatbuffers-1.10-py2.py3-none-any.whl (15 kB)
+Downloading Jinja2-3.0.0-py3-none-any.whl (133 kB)
+Downloading matplotlib-3.3.4-cp38-cp38-manylinux1_x86_64.whl (11.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.6/11.6 MB 106.1 MB/s eta 0:00:00
+Downloading networkx-1.11-py2.py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 103.9 MB/s eta 0:00:00
+Downloading numpy-1.19.5-cp38-cp38-manylinux2010_x86_64.whl (14.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.9/14.9 MB 125.3 MB/s eta 0:00:00
+Downloading onnx-1.10.0-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (12.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.3/12.3 MB 44.7 MB/s eta 0:00:00
+Downloading onnxruntime-1.9.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 63.9 MB/s eta 0:00:00
+Downloading opencv_python-4.5.1.48-cp38-cp38-manylinux2014_x86_64.whl (50.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.4/50.4 MB 129.4 MB/s eta 0:00:00
+Downloading ply-3.11-py2.py3-none-any.whl (49 kB)
+Downloading protobuf-3.13.0-cp38-cp38-manylinux1_x86_64.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 12.4 MB/s eta 0:00:00
+Downloading requests-2.22.0-py2.py3-none-any.whl (57 kB)
+Downloading tqdm-4.63.0-py2.py3-none-any.whl (76 kB)
+Downloading onnxoptimizer-0.3.13-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (677 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 677.8/677.8 kB 74.4 MB/s eta 0:00:00
+Downloading scipy-1.4.1-cp38-cp38-manylinux1_x86_64.whl (26.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 26.0/26.0 MB 73.3 MB/s eta 0:00:00
+Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
+Downloading chardet-3.0.4-py2.py3-none-any.whl (133 kB)
+Downloading click-8.1.8-py3-none-any.whl (98 kB)
+Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)
+Downloading decorator-5.3.1-py3-none-any.whl (10 kB)
+Downloading idna-2.8-py2.py3-none-any.whl (58 kB)
+Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Downloading kiwisolver-1.4.7-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 105.8 MB/s eta 0:00:00
+Downloading MarkupSafe-2.1.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (26 kB)
+Downloading pillow-10.4.0-cp38-cp38-manylinux_2_28_x86_64.whl (4.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 111.0 MB/s eta 0:00:00
+Downloading pyparsing-3.1.4-py3-none-any.whl (104 kB)
+Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Downloading typing_extensions-4.13.2-py3-none-any.whl (45 kB)
+Downloading urllib3-1.25.11-py2.py3-none-any.whl (127 kB)
+Downloading werkzeug-3.0.6-py3-none-any.whl (227 kB)
+Downloading scikit_learn-1.2.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (9.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 102.7 MB/s eta 0:00:00
+Downloading joblib-1.4.2-py3-none-any.whl (301 kB)
+Downloading threadpoolctl-3.5.0-py3-none-any.whl (18 kB)
+Building wheels for collected packages: psutil, ruamel.yaml, sklearn
+  Building wheel for psutil (setup.py): started
+  Building wheel for psutil (setup.py): finished with status 'done'
+  Created wheel for psutil: filename=psutil-5.6.2-cp38-cp38-linux_x86_64.whl size=268294 sha256=ac150d848d95ca76228c7937f42c51b23c03211511e5d02b5eff34fcc860134d
+  Stored in directory: /home/runner/.cache/pip/wheels/8f/7b/75/437d81e9c25a1abadcc771195ee8f74a0abb2c4a6db64522ab
+  Building wheel for ruamel.yaml (setup.py): started
+  Building wheel for ruamel.yaml (setup.py): finished with status 'done'
+  Created wheel for ruamel.yaml: filename=ruamel.yaml-0.15.81-cp38-cp38-linux_x86_64.whl size=841256 sha256=5a1012c5b577c735e5dc5821753efc4ebbe0a45260d9288cccf15ee704745083
+  Stored in directory: /home/runner/.cache/pip/wheels/44/e4/45/f7274ae9714c6fc24cf5cfcdc34178833daed150eb164061b2
+  Building wheel for sklearn (setup.py): started
+  Building wheel for sklearn (setup.py): finished with status 'done'
+  Created wheel for sklearn: filename=sklearn-0.0-py2.py3-none-any.whl size=1316 sha256=e578053ad91985118a8a2df24e358e8463c5470d324e9ddcbe3bf9461e3b4bba
+  Stored in directory: /home/runner/.cache/pip/wheels/22/0b/40/fd3f795caaa1fb4c6cb738bc1f56100be1e57da95849bfc897
+Successfully built psutil ruamel.yaml sklearn
+Installing collected packages: ruamel.yaml, ply, flatbuffers, chardet, urllib3, typing-extensions, tqdm, threadpoolctl, six, pyparsing, psutil, pillow, numpy, MarkupSafe, kiwisolver, joblib, itsdangerous, idna, decorator, cycler, click, certifi, Werkzeug, scipy, requests, python-dateutil, protobuf, opencv-python, networkx, Jinja2, scikit-learn, onnxruntime, onnx, matplotlib, flask, sklearn, onnxoptimizer, rknn-toolkit
+Successfully installed Jinja2-3.0.0 MarkupSafe-2.1.5 Werkzeug-3.0.6 certifi-2026.7.22 chardet-3.0.4 click-8.1.8 cycler-0.12.1 decorator-5.3.1 flask-2.0.2 flatbuffers-1.10 idna-2.8 itsdangerous-2.2.0 joblib-1.4.2 kiwisolver-1.4.7 matplotlib-3.3.4 networkx-1.11 numpy-1.19.5 onnx-1.10.0 onnxoptimizer-0.3.13 onnxruntime-1.9.0 opencv-python-4.5.1.48 pillow-10.4.0 ply-3.11 protobuf-3.13.0 psutil-5.6.2 pyparsing-3.1.4 python-dateutil-2.9.0.post0 requests-2.22.0 rknn-toolkit-1.7.5 ruamel.yaml-0.15.81 scikit-learn-1.2.2 scipy-1.4.1 six-1.17.0 sklearn-0.0 threadpoolctl-3.5.0 tqdm-4.63.0 typing-extensions-4.13.2 urllib3-1.25.11
+
+[notice] A new release of pip is available: 24.3.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
++ python -m pip install onnx==1.12.0 'protobuf<4'
+Collecting onnx==1.12.0
+  Downloading onnx-1.12.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (13 kB)
+Requirement already satisfied: protobuf<4 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (3.13.0)
+Requirement already satisfied: numpy>=1.16.6 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from onnx==1.12.0) (1.19.5)
+Requirement already satisfied: typing-extensions>=3.6.2.1 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from onnx==1.12.0) (4.13.2)
+Requirement already satisfied: six>=1.9 in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from protobuf<4) (1.17.0)
+Requirement already satisfied: setuptools in /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages (from protobuf<4) (56.0.0)
+Downloading onnx-1.12.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (13.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.1/13.1 MB 83.5 MB/s eta 0:00:00
+Installing collected packages: onnx
+  Attempting uninstall: onnx
+    Found existing installation: onnx 1.10.0
+    Uninstalling onnx-1.10.0:
+      Successfully uninstalled onnx-1.10.0
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+rknn-toolkit 1.7.5 requires onnx==1.10.0, but you have onnx 1.12.0 which is incompatible.
+Successfully installed onnx-1.12.0
+
+[notice] A new release of pip is available: 24.3.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
++ python -
+F2_PYTHON 3.8.18 (default, Dec 12 2024, 19:15:02) 
+[GCC 11.4.0]
+F2_RKNN_IMPORT /opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/site-packages/rknn/__init__.py
+F2_ONNX_VERSION 1.12.0
