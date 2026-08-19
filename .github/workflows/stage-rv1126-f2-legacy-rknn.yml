@@ -110,14 +110,16 @@ jobs:
         shell: bash
         run: |
           O="$RUNNER_TEMP/f2"
-          find "$O" -type f -maxdepth 3 -print0 | sort -z | xargs -0 sha256sum > "$O/SHA256SUMS" || true
+          sha256sum "$O"/models/*.onnx "$O"/results/* 2>/dev/null | tee "$O/SHA256SUMS" || true
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: rv1126-f2-legacy-rknn-probe
           path: |
-            ${{ runner.temp }}/f2/**
+            ${{ runner.temp }}/f2/models/**
+            ${{ runner.temp }}/f2/results/**
+            ${{ runner.temp }}/f2/SHA256SUMS
             experiments/rv1126-generative-video-fabric/build_f2_onnx.py
             experiments/rv1126-generative-video-fabric/run_f2_legacy_conversion.py
             experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F2_TINY_CNN_BUDGET.json
