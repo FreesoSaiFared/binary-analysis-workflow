@@ -1,0 +1,57 @@
+{
+  "status": "SOFTWARE_GRAPH_BUDGET_BUILT_NOT_RKNN_CONVERTED",
+  "architecture": "fixed-shape residual correction CNN, warp/resize outside NPU graph",
+  "assumptions": {
+    "MAC_to_ops": 2,
+    "hidden_channels": 16,
+    "residual_blocks": 4,
+    "input_channels": 7,
+    "input_semantics": "warped RGB + reference RGB/temporal features + mask placeholder; exact packing TBD"
+  },
+  "graphs": [
+    {
+      "width": 640,
+      "height": 360,
+      "input_channels": 7,
+      "hidden_channels": 16,
+      "residual_blocks": 4,
+      "total_macs": 4578508800,
+      "GMAC": 4.5785088,
+      "GOP_if_MAC_equals_2_ops": 9.1570176,
+      "activation_bytes_int8_peak_approx": 3686400,
+      "operator_palette": ["Conv","ReLU candidate","Add residual"],
+      "external_ops": ["deterministic warp/reprojection","scale/resize","codec"],
+      "live_parallelism_min_by_utilization": {"0.2":2,"0.4":1,"0.7":1}
+    },
+    {
+      "width": 960,
+      "height": 540,
+      "input_channels": 7,
+      "hidden_channels": 16,
+      "residual_blocks": 4,
+      "total_macs": 10301644800,
+      "GMAC": 10.3016448,
+      "GOP_if_MAC_equals_2_ops": 20.6032896,
+      "activation_bytes_int8_peak_approx": 8294400,
+      "operator_palette": ["Conv","ReLU candidate","Add residual"],
+      "external_ops": ["deterministic warp/reprojection","scale/resize","codec"],
+      "live_parallelism_min_by_utilization": {"0.2":5,"0.4":3,"0.7":2}
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "input_channels": 7,
+      "hidden_channels": 16,
+      "residual_blocks": 4,
+      "total_macs": 18314035200,
+      "GMAC": 18.3140352,
+      "GOP_if_MAC_equals_2_ops": 36.6280704,
+      "activation_bytes_int8_peak_approx": 14745600,
+      "operator_palette": ["Conv","ReLU candidate","Add residual"],
+      "external_ops": ["deterministic warp/reprojection","scale/resize","codec"],
+      "live_parallelism_min_by_utilization": {"0.2":8,"0.4":4,"0.7":3}
+    }
+  ],
+  "critical_observation": "360p graph is ~9.16 GOP; at the F1 median 40% delivered-utilization assumption, one RV1126 ideal 16.667-ms compute window is ~9.60 GOP before transfer/halo, making this deliberately chosen graph a sharp converter/timing discriminator rather than an obviously impossible network.",
+  "conversion_gate": "must pass legacy RKNN-Toolkit v1.7.5 targeting rv1126 with no hidden CPU fallback before timing relevance is claimed"
+}
