@@ -47,7 +47,6 @@ def build(path: Path, variant: str):
     output_name="rgb"
 
     if variant == "resize":
-        # opset-11 Resize, sizes supplied as initializer. Deliberately keep resize inside graph.
         roi=numpy_helper.from_array(np.array([],dtype=np.float32),name="resize_roi")
         scales=numpy_helper.from_array(np.array([],dtype=np.float32),name="resize_scales")
         sizes=numpy_helper.from_array(np.array([1,3,720,1280],dtype=np.int64),name="resize_sizes")
@@ -56,7 +55,6 @@ def build(path: Path, variant: str):
         output_name="output"
         outshape=[1,3,720,1280]
     elif variant == "warp":
-        # Deliberately unsupported custom operator: converter must fail closed/classify.
         nodes.append(helper.make_node("WarpLike",["rgb"],["output"],name="warp_negative",domain="rv1126.test"))
         output_name="output"; outshape=[1,3,h,w]
     else:
@@ -66,7 +64,11 @@ def build(path: Path, variant: str):
     graph=helper.make_graph(nodes,f"rv1126_f2_{variant}",[inp],[out],inits)
     model=helper.make_model(graph,producer_name="rk3588-rv1126-fabric",opset_imports=[helper.make_opsetid("",11),helper.make_opsetid("rv1126.test",1)])
     model.ir_version=7
-    onnx.checker.check_model(model,check_custom_domain=False)
+    # ONNX 1.12 does not expose the newer check_custom_domain keyword.
+    # Standard-domain positive/resize models are checked here; the custom-domain
+    # warp negative is intentionally left for the RKNN converter to reject/classify.
+    if variant != "warp":
+        onnx.checker.check_model(model)
     onnx.save(model,str(path))
 
 
