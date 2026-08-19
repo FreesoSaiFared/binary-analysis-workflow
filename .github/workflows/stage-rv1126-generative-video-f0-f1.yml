@@ -1,0 +1,58 @@
+name: Prove RV1126 generative-video F0/F1 software model
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - 'experiments/rv1126-generative-video-fabric/**'
+      - '.github/workflows/stage-rv1126-generative-video-f0-f1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  f0-f1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run complete F0/F1 sweep
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$RUNNER_TEMP/rv1126-f0-f1"
+          mkdir -p "$O"
+          python3 "$D/rv1126_video_fabric_f0.py" --out "$O" > "$O/run-summary.json"
+          python3 - <<'PY' "$O"
+          import csv,json,sys,pathlib
+          o=pathlib.Path(sys.argv[1])
+          rows=json.load(open(o/'rv1126_video_fabric_f0_sweep.json'))
+          budgets=json.load(open(o/'rv1126_video_fabric_f1_budget.json'))
+          assert len(rows)==1944, len(rows)
+          assert len(budgets)==54, len(budgets)
+          assert all(r['stale_generations_rejected']==1 for r in rows)
+          assert all(r['duplicate_authoritative_owner_errors']==0 for r in rows)
+          assert all(r['final_generation']==599 for r in rows)
+          # Exact crossover behavior for the 40%-util, 40-GOP baseline.
+          def pick(sf,nodes,link):
+              return next(r for r in rows if r['source_fps']==sf and r['node_count']==nodes and r['link_mbps']==link and r['effective_utilization']==0.4 and r['model_gop_per_reconstructed']==40)
+          assert pick(15,4,100)['bottleneck']=='link'
+          assert pick(15,4,100)['steady_state_fps'] < 60
+          assert pick(15,4,1000)['link_load'] < 0.2
+          assert pick(5,4,1000)['compute_load'] > 0.94
+          assert pick(5,4,1000)['steady_state_fps'] > 59.5
+          print('RV1126_VIDEO_F0_F1_SWEEP_PASS cases=1944 budgets=54 stale_reject=all')
+          PY
+          sha256sum "$D/rv1126_video_fabric_f0.py" "$O/rv1126_video_fabric_f0_sweep.csv" "$O/rv1126_video_fabric_f0_sweep.json" "$O/rv1126_video_fabric_f1_budget.csv" "$O/rv1126_video_fabric_f1_budget.json" | tee "$O/SHA256SUMS"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rv1126-generative-video-f0-f1
+          path: |
+            ${{ runner.temp }}/rv1126-f0-f1/**
+            experiments/rv1126-generative-video-fabric/rv1126_video_fabric_f0.py
+            experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F0.md
+            experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F0_MACHINE_SUMMARY.json
+            experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F0_COMPACT.csv
+            experiments/rv1126-generative-video-fabric/rv1126_video_fabric_f1_budget.csv
+            experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F2_OPERATOR_GATE.json
