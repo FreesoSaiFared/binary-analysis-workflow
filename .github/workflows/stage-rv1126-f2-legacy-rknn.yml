@@ -1,0 +1,123 @@
+name: Probe RV1126 legacy RKNN F2 operator gate
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - 'experiments/rv1126-generative-video-fabric/build_f2_onnx.py'
+      - 'experiments/rv1126-generative-video-fabric/run_f2_legacy_conversion.py'
+      - 'experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F2_*'
+      - '.github/workflows/stage-rv1126-f2-legacy-rknn.yml'
+  pull_request:
+    paths:
+      - 'experiments/rv1126-generative-video-fabric/**'
+      - '.github/workflows/stage-rv1126-f2-legacy-rknn.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-converter-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Build ONNX controls at legacy-compatible opset
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade 'pip<24' wheel setuptools
+          python -m pip install 'numpy<1.24' 'protobuf<4' 'onnx==1.12.0'
+          D=experiments/rv1126-generative-video-fabric
+          O="$RUNNER_TEMP/f2"
+          mkdir -p "$O/models" "$O/results"
+          python "$D/build_f2_onnx.py" --out "$O/models"
+          python - <<'PY' "$O/models"
+          import onnx, pathlib, sys, json
+          root=pathlib.Path(sys.argv[1])
+          for p in sorted(root.glob('*.onnx')):
+              m=onnx.load(str(p))
+              onnx.checker.check_model(m, check_custom_domain=False)
+              print('ONNX_CONTROL',p.name,'opset',[(x.domain,x.version) for x in m.opset_import],
+                    'ops',[n.op_type for n in m.graph.node])
+          PY
+
+      - name: Install exact legacy RKNN-Toolkit 1.7.5 x86_64 CPython 3.8 wheel
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/f2"
+          cd "$O"
+          curl -fL --retry 3 -o packages.zip \
+            https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.zip
+          echo 'f5de735b9b733d74f97db5cce46c2c70  packages.zip' | md5sum -c -
+          unzip -q packages.zip -d packages
+          WHEEL=$(find packages -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
+          test -n "$WHEEL"
+          python -m pip install "$WHEEL"
+          python - <<'PY'
+          from rknn.api import RKNN
+          print('RKN_TOOLKIT_1_7_5_IMPORT_PASS',RKNN)
+          PY
+
+      - name: Run RV1126 graph-conversion probes
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$RUNNER_TEMP/f2"
+          python "$D/run_f2_legacy_conversion.py" --models "$O/models" --out "$O/results" \
+            2>&1 | tee "$O/results/converter.log"
+          echo $? > "$O/results/runner_exit_code.txt"
+
+      - name: Classify F2 probe outcome
+        shell: bash
+        run: |
+          set -euo pipefail
+          O="$RUNNER_TEMP/f2"
+          python - <<'PY' "$O"
+          import json,pathlib,sys
+          o=pathlib.Path(sys.argv[1])
+          p=o/'results/F2_CONVERSION_RESULTS.json'
+          if not p.exists():
+              print('F2_ENVIRONMENT_OR_RUNNER_FAILURE: conversion result JSON absent')
+              raise SystemExit(0)
+          rs=json.load(open(p))
+          by={r['model']:r for r in rs}
+          pos=by['rv1126_f2_positive.onnx']
+          resize=by['rv1126_f2_resize.onnx']
+          warp=by['rv1126_f2_warp.onnx']
+          def passed(r): return r['load_ret']==0 and r['build_ret']==0 and r['export_ret']==0 and not r['exception']
+          print('F2_POSITIVE_PASS',passed(pos),json.dumps(pos,sort_keys=True))
+          print('F2_RESIZE_PASS',passed(resize),json.dumps(resize,sort_keys=True))
+          print('F2_WARP_PASS',passed(warp),json.dumps(warp,sort_keys=True))
+          if passed(pos) and not passed(warp):
+              print('RV1126_F2_OPERATOR_DISCRIMINATOR_PASS positive_compiles warp_negative_rejected')
+          elif not passed(pos):
+              print('RV1126_F2_POSITIVE_REJECTED_NEEDS_CLASSIFICATION')
+          else:
+              print('RV1126_F2_DISCRIMINATOR_INCONCLUSIVE')
+          PY
+
+      - name: Hash evidence
+        if: always()
+        shell: bash
+        run: |
+          O="$RUNNER_TEMP/f2"
+          find "$O" -type f -maxdepth 3 -print0 | sort -z | xargs -0 sha256sum > "$O/SHA256SUMS" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f2-legacy-rknn-probe
+          path: |
+            ${{ runner.temp }}/f2/**
+            experiments/rv1126-generative-video-fabric/build_f2_onnx.py
+            experiments/rv1126-generative-video-fabric/run_f2_legacy_conversion.py
+            experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F2_TINY_CNN_BUDGET.json
+          if-no-files-found: warn
