@@ -2,6 +2,7 @@
 from pathlib import Path
 import numpy as np
 import onnx
+import cv2
 from onnx import TensorProto, helper, numpy_helper
 
 OUT = Path(__file__).resolve().parent
@@ -38,18 +39,23 @@ model.ir_version = 6
 onnx.checker.check_model(model)
 onnx.save(model, OUT/'rv1126_tiny_residual_f2.onnx')
 
-# Calibration data uses deterministic PPMs so no image library is required.
+# Match Rockchip's old-RKNN quantization examples: ordinary JPEG image paths,
+# one image per dataset line. Values are deterministic synthetic calibration
+# patterns; they are not quality-training data.
 cal = OUT/'f2_calibration'
 cal.mkdir(exist_ok=True)
 paths=[]
 for i in range(8):
     yy,xx=np.mgrid[0:64,0:64]
     rgb=np.stack(((xx*4+i*13)%256,(yy*4+i*29)%256,((xx+yy)*2+i*47)%256),axis=-1).astype(np.uint8)
-    p=cal/f'cal_{i:02d}.ppm'
-    with p.open('wb') as f:
-        f.write(b'P6\n64 64\n255\n'); f.write(rgb.tobytes())
-    paths.append(str(p))
+    p=cal/f'cal_{i:02d}.jpg'
+    # OpenCV expects BGR when writing; convert so the file decodes to intended RGB.
+    ok=cv2.imwrite(str(p), cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+    if not ok:
+        raise RuntimeError(f'failed to write calibration image {p}')
+    paths.append(str(p.resolve()))
 (OUT/'f2_dataset.txt').write_text('\n'.join(paths)+'\n')
 print('F2_ONNX_CREATED', OUT/'rv1126_tiny_residual_f2.onnx')
 print('F2_OPSET', 11, 'IR', model.ir_version)
 print('F2_NODES', ','.join(n.op_type for n in nodes))
+print('F2_CALIBRATION_FORMAT', 'jpeg', 'count', len(paths))
