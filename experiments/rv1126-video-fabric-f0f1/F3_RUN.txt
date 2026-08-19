@@ -1,0 +1,149 @@
+{
+  "status": "F3_PASS",
+  "rows_bandwidth": 2916,
+  "rows_utilization": 1944,
+  "median_recon_gop": 1.443446784,
+  "median_auth_gop": 1.1501568,
+  "focus": [
+    {
+      "source_fps": 5,
+      "transport": "owner_only",
+      "throughput_fps": 60.72996779880479,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 3.390960693359375,
+      "compute_capacity_ratio": 9.396249053459455,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 5,
+      "transport": "finishing_owner",
+      "throughput_fps": 60.093213269436006,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 61.835638427734374,
+      "compute_capacity_ratio": 37.58499621383782,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 5,
+      "transport": "independent_au",
+      "throughput_fps": 61.041024410825365,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 10.377508544921875,
+      "compute_capacity_ratio": 37.58499621383782,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 5,
+      "transport": "raw_gather",
+      "throughput_fps": 41.46786153566105,
+      "deadline_misses": 592,
+      "avg_mib_s_over_clip": 185.781103515625,
+      "compute_capacity_ratio": 37.58499621383782,
+      "bottleneck": "INTERCONNECT"
+    },
+    {
+      "source_fps": 10,
+      "transport": "owner_only",
+      "throughput_fps": 60.36451915073222,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 5.351409912109375,
+      "compute_capacity_ratio": 9.560925583262353,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 10,
+      "transport": "finishing_owner",
+      "throughput_fps": 60.14572717491948,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 52.743988037109375,
+      "compute_capacity_ratio": 38.24370233304941,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 10,
+      "transport": "independent_au",
+      "throughput_fps": 60.48586741950031,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 14.337615966796875,
+      "compute_capacity_ratio": 38.24370233304941,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 10,
+      "transport": "raw_gather",
+      "throughput_fps": 41.7564533398808,
+      "deadline_misses": 579,
+      "avg_mib_s_over_clip": 189.7412109375,
+      "compute_capacity_ratio": 38.24370233304941,
+      "bottleneck": "INTERCONNECT"
+    },
+    {
+      "source_fps": 15,
+      "transport": "owner_only",
+      "throughput_fps": 60.24367836645431,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 7.311859130859375,
+      "compute_capacity_ratio": 9.731477246342584,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 15,
+      "transport": "finishing_owner",
+      "throughput_fps": 60.07853689538923,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 58.41508178710937,
+      "compute_capacity_ratio": 38.925908985370334,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 15,
+      "transport": "independent_au",
+      "throughput_fps": 60.305189506991205,
+      "deadline_misses": 0,
+      "avg_mib_s_over_clip": 20.140545654296876,
+      "compute_capacity_ratio": 38.925908985370334,
+      "bottleneck": "HEADROOM"
+    },
+    {
+      "source_fps": 15,
+      "transport": "raw_gather",
+      "throughput_fps": 41.853545318336,
+      "deadline_misses": 575,
+      "avg_mib_s_over_clip": 195.544140625,
+      "compute_capacity_ratio": 38.925908985370334,
+      "bottleneck": "INTERCONNECT"
+    }
+  ],
+  "crossovers": [
+    {
+      "source_res": "360p",
+      "source_fps": 5,
+      "nodes": 4,
+      "scene": "median",
+      "owner_only_crossover_mib_s": 12.5,
+      "finishing_owner_crossover_mib_s": 50,
+      "independent_au_crossover_mib_s": 12.5,
+      "raw_gather_crossover_mib_s": 200
+    },
+    {
+      "source_res": "360p",
+      "source_fps": 10,
+      "nodes": 4,
+      "scene": "median",
+      "owner_only_crossover_mib_s": 12.5,
+      "finishing_owner_crossover_mib_s": 12.5,
+      "independent_au_crossover_mib_s": 12.5,
+      "raw_gather_crossover_mib_s": 200
+    },
+    {
+      "source_res": "360p",
+      "source_fps": 15,
+      "nodes": 4,
+      "scene": "median",
+      "owner_only_crossover_mib_s": 12.5,
+      "finishing_owner_crossover_mib_s": 12.5,
+      "independent_au_crossover_mib_s": 12.5,
+      "raw_gather_crossover_mib_s": 200
+    }
+  ]
+}
