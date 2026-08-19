@@ -15,7 +15,10 @@ def compile_one(quantized: bool, out_name: str):
     ret = rknn.load_onnx(model=ONNX, inputs=['input'], input_size_list=[[3,64,64]], outputs=['output'])
     if ret != 0: raise RuntimeError(f'load_onnx ret={ret}')
     print('F2_BUILD_BEGIN')
-    ret = rknn.build(do_quantization=quantized, dataset=DATA if quantized else None)
+    # RKNN Toolkit 1.7.5 uses the dataset to construct input metadata even for
+    # non-quantized builds; Rockchip's own RV1126 examples pass dataset.txt with
+    # do_quantization=False. Use the identical deterministic dataset in both probes.
+    ret = rknn.build(do_quantization=quantized, dataset=DATA)
     if ret != 0: raise RuntimeError(f'build ret={ret}')
     print('F2_EXPORT_BEGIN')
     out = str(D/out_name)
