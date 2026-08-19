@@ -4,8 +4,8 @@
 + curl -L --fail --retry 3 -o packages.tar.gz https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.tar.gz
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-  2  678M    2 20.0M    0     0  18.5M      0  0:00:36  0:00:01  0:00:35 18.5M  7  678M    7 50.3M    0     0  24.3M      0  0:00:27  0:00:02  0:00:25 30.6M 12  678M   12 85.1M    0     0  27.6M      0  0:00:24  0:00:03  0:00:21 32.5M 17  678M   17  115M    0     0  28.4M      0  0:00:23  0:00:04  0:00:19 32.0M 22  678M   22  155M    0     0  30.6M      0  0:00:22  0:00:05  0:00:17 33.9M 30  678M   30  205M    0     0  33.6M      0  0:00:20  0:00:06  0:00:14 36.9M 36  678M   36  250M    0     0  35.1M      0  0:00:19  0:00:07  0:00:12 39.6M 42  678M   42  285M    0     0  35.3M      0  0:00:19  0:00:08  0:00:11 40.1M 48  678M   48  330M    0     0  36.1M      0  0:00:18  0:00:09  0:00:09 42.2M 53  678M   53  363M    0     0  36.0M      0  0:00:18  0:00:10  0:00:08 41.4M 59  678M   59  405M    0     0  36.6M      0  0:00:18  0:00:11  0:00:07 40.2M 67  678M   67  458M    0     0  37.9M      0  0:00:17  0:00:12  0:00:05 41.8M 73  678M   73  500M    0     0  38.2M      0  0:00:17  0:00:13  0:00:04 42.7M 78  678M   78  535M    0     0  38.0M      0  0:00:17  0:00:14  0:00:03 41.6M 83  678M   83  562M    0     0  37.3M      0  0:00:18  0:00:15  0:00:03 40.0M 89  678M   89  605M    0     0  37.6M      0  0:00:17  0:00:16  0:00:01 40.0M 93  678M   93  635M    0     0  37.2M      0  0:00:18  0:00:17  0:00:01 35.5M 99  678M   99  676M    0     0  37.3M      0  0:00:18  0:00:18 --:--:-- 35.1M100  678M  100  678M    0     0  37.4M      0  0:00:18  0:00:18 --:--:-- 35.1M
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0  678M    0  317k    0     0   705k      0  0:16:23 --:--:--  0:16:23  705k  5  678M    5 35.6M    0     0  24.6M      0  0:00:27  0:00:01  0:00:26 35.3M  9  678M    9 67.7M    0     0  27.6M      0  0:00:24  0:00:02  0:00:22 33.7M 16  678M   16  110M    0     0  31.3M      0  0:00:21  0:00:03  0:00:18 35.7M 22  678M   22  153M    0     0  34.4M      0  0:00:19  0:00:04  0:00:15 38.2M 28  678M   28  194M    0     0  35.5M      0  0:00:19  0:00:05  0:00:14 38.6M 32  678M   32  220M    0     0  34.1M      0  0:00:19  0:00:06  0:00:13 36.8M 38  678M   38  260M    0     0  34.8M      0  0:00:19  0:00:07  0:00:12 38.3M 43  678M   43  297M    0     0  35.2M      0  0:00:19  0:00:08  0:00:11 37.9M 50  678M   50  340M    0     0  36.0M      0  0:00:18  0:00:09  0:00:09 37.5M 55  678M   55  375M    0     0  35.9M      0  0:00:18  0:00:10  0:00:08 36.4M 59  678M   59  400M    0     0  34.9M      0  0:00:19  0:00:11  0:00:08 36.0M 64  678M   64  437M    0     0  35.0M      0  0:00:19  0:00:12  0:00:07 35.2M 68  678M   68  467M    0     0  34.7M      0  0:00:19  0:00:13  0:00:06 34.0M 74  678M   74  504M    0     0  34.8M      0  0:00:19  0:00:14  0:00:05 32.6M 80  678M   80  542M    0     0  35.1M      0  0:00:19  0:00:15  0:00:04 33.3M 86  678M   86  585M    0     0  35.5M      0  0:00:19  0:00:16  0:00:03 36.9M 92  678M   92  628M    0     0  36.0M      0  0:00:18  0:00:17  0:00:01 38.5M 98  678M   98  670M    0     0  36.2M      0  0:00:18  0:00:18 --:--:-- 40.3M100  678M  100  678M    0     0  36.4M      0  0:00:18  0:00:18 --:--:-- 41.8M
 + echo '0818a331d3bba755036cfee296bdad31  packages.tar.gz'
 + md5sum -c -
 packages.tar.gz: OK
@@ -22,7 +22,7 @@ Collecting pip<25
 Collecting wheel
   Downloading wheel-0.45.1-py3-none-any.whl.metadata (2.3 kB)
 Downloading pip-24.3.1-py3-none-any.whl (1.8 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 5.5 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 57.6 MB/s eta 0:00:00
 Downloading wheel-0.45.1-py3-none-any.whl (72 kB)
 Installing collected packages: wheel, pip
   Attempting uninstall: pip
@@ -121,26 +121,26 @@ Downloading Flask-2.0.2-py3-none-any.whl (95 kB)
 Downloading flatbuffers-1.10-py2.py3-none-any.whl (15 kB)
 Downloading Jinja2-3.0.0-py3-none-any.whl (133 kB)
 Downloading matplotlib-3.3.4-cp38-cp38-manylinux1_x86_64.whl (11.6 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.6/11.6 MB 81.0 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.6/11.6 MB 44.6 MB/s eta 0:00:00
 Downloading networkx-1.11-py2.py3-none-any.whl (1.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 120.6 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 14.9 MB/s eta 0:00:00
 Downloading numpy-1.19.5-cp38-cp38-manylinux2010_x86_64.whl (14.9 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.9/14.9 MB 81.3 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.9/14.9 MB 87.6 MB/s eta 0:00:00
 Downloading onnx-1.10.0-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (12.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.3/12.3 MB 94.6 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.3/12.3 MB 12.8 MB/s eta 0:00:00
 Downloading onnxruntime-1.9.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.8 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 6.2 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 21.7 MB/s eta 0:00:00
 Downloading opencv_python-4.5.1.48-cp38-cp38-manylinux2014_x86_64.whl (50.4 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.4/50.4 MB 46.5 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.4/50.4 MB 13.8 MB/s eta 0:00:00
 Downloading ply-3.11-py2.py3-none-any.whl (49 kB)
 Downloading protobuf-3.13.0-cp38-cp38-manylinux1_x86_64.whl (1.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 125.9 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 143.0 MB/s eta 0:00:00
 Downloading requests-2.22.0-py2.py3-none-any.whl (57 kB)
 Downloading tqdm-4.63.0-py2.py3-none-any.whl (76 kB)
 Downloading onnxoptimizer-0.3.13-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (677 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 677.8/677.8 kB 115.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 677.8/677.8 kB 101.0 MB/s eta 0:00:00
 Downloading scipy-1.4.1-cp38-cp38-manylinux1_x86_64.whl (26.0 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 26.0/26.0 MB 75.5 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 26.0/26.0 MB 59.9 MB/s eta 0:00:00
 Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
 Downloading chardet-3.0.4-py2.py3-none-any.whl (133 kB)
 Downloading click-8.1.8-py3-none-any.whl (98 kB)
@@ -149,10 +149,10 @@ Downloading decorator-5.3.1-py3-none-any.whl (10 kB)
 Downloading idna-2.8-py2.py3-none-any.whl (58 kB)
 Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
 Downloading kiwisolver-1.4.7-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl (1.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 265.0 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 148.8 MB/s eta 0:00:00
 Downloading MarkupSafe-2.1.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (26 kB)
 Downloading pillow-10.4.0-cp38-cp38-manylinux_2_28_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 61.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 210.6 MB/s eta 0:00:00
 Downloading pyparsing-3.1.4-py3-none-any.whl (104 kB)
 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
@@ -160,21 +160,21 @@ Downloading typing_extensions-4.13.2-py3-none-any.whl (45 kB)
 Downloading urllib3-1.25.11-py2.py3-none-any.whl (127 kB)
 Downloading werkzeug-3.0.6-py3-none-any.whl (227 kB)
 Downloading scikit_learn-1.2.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (9.8 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 98.5 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 19.8 MB/s eta 0:00:00
 Downloading joblib-1.4.2-py3-none-any.whl (301 kB)
 Downloading threadpoolctl-3.5.0-py3-none-any.whl (18 kB)
 Building wheels for collected packages: psutil, ruamel.yaml, sklearn
   Building wheel for psutil (setup.py): started
   Building wheel for psutil (setup.py): finished with status 'done'
-  Created wheel for psutil: filename=psutil-5.6.2-cp38-cp38-linux_x86_64.whl size=268297 sha256=282c6d8ce6eae52ce2b313d8ca56a775268235a13a277ce413b563e20b28252a
+  Created wheel for psutil: filename=psutil-5.6.2-cp38-cp38-linux_x86_64.whl size=268298 sha256=78684406120448c382dfa65c5a3c0216d0e8316e06d7fc75a1b29a3f928c7e7e
   Stored in directory: /home/runner/.cache/pip/wheels/8f/7b/75/437d81e9c25a1abadcc771195ee8f74a0abb2c4a6db64522ab
   Building wheel for ruamel.yaml (setup.py): started
   Building wheel for ruamel.yaml (setup.py): finished with status 'done'
-  Created wheel for ruamel.yaml: filename=ruamel.yaml-0.15.81-cp38-cp38-linux_x86_64.whl size=841259 sha256=78067c9295ed1d67304d469ee75c82077b365a9d79254de28556761a5330baf3
+  Created wheel for ruamel.yaml: filename=ruamel.yaml-0.15.81-cp38-cp38-linux_x86_64.whl size=841259 sha256=e03cbc14ed9ccaeb8d9ef434c72ee381cb5182bc02ff26e20e0a58534b4b10ad
   Stored in directory: /home/runner/.cache/pip/wheels/44/e4/45/f7274ae9714c6fc24cf5cfcdc34178833daed150eb164061b2
   Building wheel for sklearn (setup.py): started
   Building wheel for sklearn (setup.py): finished with status 'done'
-  Created wheel for sklearn: filename=sklearn-0.0-py2.py3-none-any.whl size=1316 sha256=1a87e2c6fd272e961b3622000cf593007140b9cadee1e11e7a10f4c0b66255a6
+  Created wheel for sklearn: filename=sklearn-0.0-py2.py3-none-any.whl size=1316 sha256=3e120356affacd41ee9c5366bc554a401f12ef6d3b015656613caa49dcf14b61
   Stored in directory: /home/runner/.cache/pip/wheels/22/0b/40/fd3f795caaa1fb4c6cb738bc1f56100be1e57da95849bfc897
 Successfully built psutil ruamel.yaml sklearn
 Installing collected packages: ruamel.yaml, ply, flatbuffers, chardet, urllib3, typing-extensions, tqdm, threadpoolctl, six, pyparsing, psutil, pillow, numpy, MarkupSafe, kiwisolver, joblib, itsdangerous, idna, decorator, cycler, click, certifi, Werkzeug, scipy, requests, python-dateutil, protobuf, opencv-python, networkx, Jinja2, scikit-learn, onnxruntime, onnx, matplotlib, flask, sklearn, onnxoptimizer, rknn-toolkit
@@ -250,21 +250,21 @@ Collecting pyasn1<0.7.0,>=0.6.1 (from pyasn1-modules>=0.2.1->google-auth<2,>=1.6
 Collecting oauthlib>=3.0.0 (from requests-oauthlib>=0.7.0->google-auth-oauthlib<0.5,>=0.4.1->tensorboard<2.3.0,>=2.2.0->tensorflow==2.2.0)
   Downloading oauthlib-3.3.1-py3-none-any.whl.metadata (7.9 kB)
 Downloading tensorflow-2.2.0-cp38-cp38-manylinux2010_x86_64.whl (516.3 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 516.3/516.3 MB 47.0 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 516.3/516.3 MB 12.4 MB/s eta 0:00:00
 Downloading torch-1.10.0-cp38-cp38-manylinux1_x86_64.whl (881.9 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 881.9/881.9 MB 27.4 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 881.9/881.9 MB 10.7 MB/s eta 0:00:00
 Downloading astunparse-1.6.3-py2.py3-none-any.whl (12 kB)
 Downloading gast-0.3.3-py2.py3-none-any.whl (9.7 kB)
 Downloading absl_py-2.3.1-py3-none-any.whl (135 kB)
 Downloading google_pasta-0.2.0-py3-none-any.whl (57 kB)
 Downloading grpcio-1.70.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (6.0 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.0/6.0 MB 34.4 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.0/6.0 MB 191.2 MB/s eta 0:00:00
 Downloading h5py-2.10.0-cp38-cp38-manylinux1_x86_64.whl (2.9 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.9/2.9 MB 19.1 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.9/2.9 MB 154.0 MB/s eta 0:00:00
 Downloading Keras_Preprocessing-1.1.2-py2.py3-none-any.whl (42 kB)
 Downloading opt_einsum-3.4.0-py3-none-any.whl (71 kB)
 Downloading tensorboard-2.2.2-py3-none-any.whl (3.0 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.0/3.0 MB 112.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.0/3.0 MB 19.3 MB/s eta 0:00:00
 Downloading tensorflow_estimator-2.2.0-py2.py3-none-any.whl (454 kB)
 Downloading termcolor-2.4.0-py3-none-any.whl (7.7 kB)
 Downloading wrapt-2.0.1-cp38-cp38-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (118 kB)
@@ -272,7 +272,7 @@ Downloading google_auth-1.35.0-py2.py3-none-any.whl (152 kB)
 Downloading google_auth_oauthlib-0.4.6-py2.py3-none-any.whl (18 kB)
 Downloading Markdown-3.7-py3-none-any.whl (106 kB)
 Downloading tensorboard_plugin_wit-1.8.1-py3-none-any.whl (781 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 781.3/781.3 kB 156.6 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 781.3/781.3 kB 102.4 MB/s eta 0:00:00
 Downloading cachetools-4.2.4-py3-none-any.whl (10 kB)
 Downloading importlib_metadata-8.5.0-py3-none-any.whl (26 kB)
 Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
