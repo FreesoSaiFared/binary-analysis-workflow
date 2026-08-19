@@ -1,0 +1,23 @@
+{
+  "status": "SOFTWARE_MODEL_DERIVED",
+  "assumptions": {
+    "link_mbps": 1000,
+    "recon_dispatch_bytes": 120000,
+    "encoded_output_bytes": 20000,
+    "per_transfer_latency_ms": 0.1,
+    "submit_overhead_ms": 0.15,
+    "derate_product": 0.72675
+  },
+  "per_reconstructed_frame_fixed_overhead_ms": 1.47,
+  "available_compute_window_ms": 15.197,
+  "budgets": [
+    {"effective_utilization":0.2,"per_node_effective_tops":0.2907,"network_adjusted_max_GOP":4.4177679},
+    {"effective_utilization":0.3,"per_node_effective_tops":0.43605,"network_adjusted_max_GOP":6.62665185},
+    {"effective_utilization":0.4,"per_node_effective_tops":0.5814,"network_adjusted_max_GOP":8.8355358},
+    {"effective_utilization":0.415,"per_node_effective_tops":0.6032025,"network_adjusted_max_GOP":9.1668683925},
+    {"effective_utilization":0.5,"per_node_effective_tops":0.72675,"network_adjusted_max_GOP":11.04441975},
+    {"effective_utilization":0.6,"per_node_effective_tops":0.8721,"network_adjusted_max_GOP":13.2533037},
+    {"effective_utilization":0.7,"per_node_effective_tops":1.01745,"network_adjusted_max_GOP":15.46218765}
+  ],
+  "interpretation": "The compute-only F1 live budget overstates what one RV1126 can do at a 16.667-ms display deadline because dispatch, output transfer, and submission consume 1.47 ms under the current 1-GbE byte model. At 40% effective utilization the adjusted ceiling is 8.836 GOP, so the 9.157-GOP candidate misses. At 41.5% the ceiling is 9.167 GOP, matching the simulator's zero-miss crossover."
+}
