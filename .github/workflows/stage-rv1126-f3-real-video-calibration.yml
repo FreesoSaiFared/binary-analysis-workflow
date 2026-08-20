@@ -50,6 +50,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          export PIP_DEFAULT_TIMEOUT=180
+          export PIP_RETRIES=10
           O="$GITHUB_WORKSPACE/f3-real-calibration"
           DL=$(mktemp -d); cd "$DL"
           curl -fL --retry 3 -o packages.zip https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.zip
