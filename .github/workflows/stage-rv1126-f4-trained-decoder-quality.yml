@@ -1,0 +1,144 @@
+name: RV1126 F4 trained decoder quality
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - '.github/workflows/stage-rv1126-f4-trained-decoder-quality.yml'
+      - 'experiments/rv1126-generative-video-fabric/train_f4_trained_decoder.py'
+      - 'experiments/rv1126-generative-video-fabric/run_f4_trained_int8_conversion.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trained-decoder-quality:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+    steps:
+      - name: Bootstrap clean-room host prerequisites
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl unzip git build-essential python3 python3-dev python3-pip \
+            libgl1 libglib2.0-0 ffmpeg
+
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact native-60 training source without rerunning F3 benchmark
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$GITHUB_WORKSPACE/f4-trained"
+          mkdir -p "$O/source" "$O/evidence" "$O/converter"
+          SRC="$O/source/FFF-Sprueche_in_Hof_20191129_UHD-I_60_FPS.webm"
+          URL='https://commons.wikimedia.org/wiki/Special:Redirect/file/FFF-Spr%C3%BCche_in_Hof_20191129_%28UHD-I%2C_60_FPS%29.webm'
+          curl -fL --retry 5 --retry-delay 3 -o "$SRC" "$URL"
+          test "$(stat -c%s "$SRC")" -eq 479019896
+          echo '6166db6c22a19da63816cd5e65dbcd56e2a3e6fb  '"$SRC" | sha1sum -c -
+          echo 'af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a  '"$SRC" | sha256sum -c -
+          stat -c 'SOURCE_SIZE_BYTES=%s' "$SRC" | tee "$O/evidence/source-size.txt"
+          sha1sum "$SRC" | tee "$O/evidence/source-sha1.txt"
+          sha256sum "$SRC" | tee "$O/evidence/source-sha256.txt"
+          ffprobe -v error -select_streams v:0 \
+            -show_entries stream=codec_name,width,height,r_frame_rate,avg_frame_rate \
+            -show_entries format=duration,size,format_name -of json "$SRC" | tee "$O/evidence/source-probe.json"
+
+      - name: Install exact legacy RKNN-Toolkit 1.7.5 environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export PIP_DEFAULT_TIMEOUT=180
+          export PIP_RETRIES=10
+          O="$GITHUB_WORKSPACE/f4-trained"
+          DL=$(mktemp -d); cd "$DL"
+          curl -fL --retry 3 -o packages.zip https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.zip
+          echo 'f5de735b9b733d74f97db5cce46c2c70  packages.zip' | md5sum -c - | tee "$O/evidence/rockchip-package-md5.txt"
+          unzip -q packages.zip -d packages
+          WHEEL=$(find packages -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
+          test -n "$WHEEL"
+          sha256sum "$WHEEL" | tee "$O/evidence/rknn-wheel-sha256.txt"
+          python3 -m pip install --upgrade 'pip<24' wheel 'setuptools<76'
+          python3 -m pip install "$WHEEL"
+          python3 -m pip install 'tensorflow==2.2.0' 'torch==1.10.0' 'mxnet==1.5.0'
+          python3 -m pip install --no-deps 'torchvision==0.11.0'
+          python3 -m pip freeze | sort | tee "$O/evidence/pip-freeze.txt"
+          python3 - <<'PY' | tee "$O/evidence/environment-metadata.txt"
+          from importlib.metadata import version
+          for p in ('tensorflow','torch','torchvision','mxnet','rknn-toolkit','onnx','numpy','opencv-python'):
+              print('METADATA',p,version(p))
+          PY
+          python3 - <<'PY' 2>&1 | tee "$O/evidence/rknn-constructor.txt"
+          from rknn.api import RKNN
+          r=RKNN(verbose=True); r.release(); print('RV1126_F4_RKNN_CONSTRUCTOR_PASS')
+          PY
+
+      - name: Train and measure the fixed 9.1570176-GOP decoder
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$GITHUB_WORKSPACE/f4-trained"
+          SRC="$O/source/FFF-Sprueche_in_Hof_20191129_UHD-I_60_FPS.webm"
+          python3 "$D/train_f4_trained_decoder.py" --source "$SRC" --out "$O" \
+            --steps 800 --batch 8 --crop 64 --seed 1126 \
+            2>&1 | tee "$O/evidence/trained-decoder.log"
+          grep -F 'RV1126_F4_TRAINED_DECODER_QUALITY_PASS' "$O/evidence/trained-decoder.log"
+          python3 - <<'PY' | tee "$O/evidence/trained-quality-contract-check.txt"
+          import json, pathlib
+          p=pathlib.Path('f4-trained/evidence/F4_TRAINED_DECODER_QUALITY.json')
+          d=json.loads(p.read_text())
+          assert d['architecture']['gop_multiply_plus_add'] == 9.1570176
+          assert d['architecture']['conv_nodes'] == 10
+          assert d['architecture']['relu_nodes'] == 9
+          assert d['architecture']['add_nodes'] == 4
+          assert d['export']['onnx_ops'] == {'Add':4,'Conv':10,'Relu':9}
+          assert d['reference_ptq']['calibration_samples'] == 16
+          assert d['semantics']['input_channels'][-1] == 'interpolation_phase_byte'
+          print('RV1126_F4_TRAINED_QUALITY_CONTRACT_PASS')
+          PY
+
+      - name: Quantize trained ONNX with exact trained-decoder calibration semantics
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$GITHUB_WORKSPACE/f4-trained"
+          python3 "$D/run_f4_trained_int8_conversion.py" \
+            --model "$O/models/rv1126_f4_trained_residual_raw_u8_semantics.onnx" \
+            --dataset "$O/calibration/dataset.txt" \
+            --manifest "$O/calibration/F4_CALIBRATION_MANIFEST.json" \
+            --out "$O/converter" 2>&1 | tee "$O/evidence/trained-int8-converter.log"
+          grep -F 'RV1126_F4_TRAINED_INT8_CONVERTER_PASS' "$O/evidence/trained-int8-converter.log"
+          cp "$O/converter/F4_TRAINED_INT8_CONVERSION_RESULT.json" "$O/evidence/"
+          cp "$O/converter/rv1126_f4_trained_semantics_int8.rknn" "$O/models/"
+
+      - name: Hash machine evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$GITHUB_WORKSPACE/f4-trained"
+          D="$GITHUB_WORKSPACE/experiments/rv1126-generative-video-fabric"
+          sha256sum "$D/train_f4_trained_decoder.py" "$D/run_f4_trained_int8_conversion.py" \
+            | tee "$O/evidence/harness-sha256.txt"
+          find "$O/evidence" "$O/models" "$O/calibration" -type f ! -name SHA256SUMS -print0 \
+            | sort -z | xargs -0 sha256sum > "$O/SHA256SUMS"
+          cat "$O/SHA256SUMS"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f4-trained-decoder-quality-evidence
+          path: |
+            f4-trained/evidence/**
+            f4-trained/models/**
+            f4-trained/calibration/**
+            f4-trained/SHA256SUMS
+          if-no-files-found: error
+          compression-level: 6
