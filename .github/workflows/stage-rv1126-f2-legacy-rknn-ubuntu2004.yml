@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euxo pipefail
           D=experiments/rv1126-generative-video-fabric
-          O="$RUNNER_TEMP/f2-u20"
+          O="$GITHUB_WORKSPACE/f2-u20-evidence"
           mkdir -p "$O/models" "$O/results"
           cd "$O"
           cat /etc/os-release | tee results/os-release.txt
@@ -53,16 +53,27 @@ jobs:
           python3 -m pip install 'tensorflow==2.2.0' 'torch==1.10.0' 'mxnet==1.5.0'
           python3 -m pip install --no-deps 'torchvision==0.11.0'
           python3 -m pip check | tee results/pip-check.txt || true
-          python3 - <<'PY' | tee results/environment.txt
+          python3 - <<'PY' | tee results/environment-metadata.txt
           from importlib.metadata import version
-          import tensorflow as tf, torch, torchvision, mxnet
-          from rknn.api import RKNN
           for p in ('tensorflow','torch','torchvision','mxnet','rknn-toolkit','onnx','numpy'):
               print('METADATA',p,version(p))
-          print('RUNTIME tensorflow',tf.__version__)
-          print('RUNTIME torch',torch.__version__)
-          print('RUNTIME torchvision',torchvision.__version__)
-          print('RUNTIME mxnet',mxnet.__version__)
+          PY
+          probe () {
+            name="$1"; shift
+            set +e
+            "$@" >"results/import-${name}.txt" 2>&1
+            rc=$?
+            set -e
+            echo "IMPORT_PROBE ${name} rc=${rc}" | tee -a results/import-summary.txt
+            cat "results/import-${name}.txt"
+            test "$rc" -eq 0
+          }
+          probe tensorflow python3 -X faulthandler -c 'import tensorflow as x; print("tensorflow",x.__version__)'
+          probe torch python3 -X faulthandler -c 'import torch as x; print("torch",x.__version__)'
+          probe torchvision python3 -X faulthandler -c 'import torchvision as x; print("torchvision",x.__version__)'
+          probe mxnet python3 -X faulthandler -c 'import mxnet as x; print("mxnet",x.__version__)'
+          python3 -X faulthandler - <<'PY' 2>&1 | tee results/rknn-constructor.txt
+          from rknn.api import RKNN
           r=RKNN(verbose=True); r.release()
           print('UBUNTU2004_RKNN_1_7_5_CONSTRUCTOR_PASS')
           PY
@@ -74,7 +85,7 @@ jobs:
         run: |
           set -euxo pipefail
           D=experiments/rv1126-generative-video-fabric
-          O="$RUNNER_TEMP/f2-u20"
+          O="$GITHUB_WORKSPACE/f2-u20-evidence"
           python3 "$D/run_f2_legacy_conversion.py" --models "$O/models" --out "$O/results" \
             2>&1 | tee "$O/results/converter.log"
           python3 - <<'PY' "$O"
@@ -91,14 +102,11 @@ jobs:
           print('RKNN_SIZE',p.stat().st_size)
           print('RKNN_SHA256',hashlib.sha256(p.read_bytes()).hexdigest())
           PY
-          sha256sum "$O"/models/*.onnx "$O"/results/* | tee "$O/SHA256SUMS"
+          find "$O/models" "$O/results" -type f -print0 | sort -z | xargs -0 sha256sum | tee "$O/SHA256SUMS"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: rv1126-f2-ubuntu2004-cleanroom
-          path: |
-            ${{ runner.temp }}/f2-u20/models/**
-            ${{ runner.temp }}/f2-u20/results/**
-            ${{ runner.temp }}/f2-u20/SHA256SUMS
-          if-no-files-found: warn
+          path: f2-u20-evidence/**
+          if-no-files-found: error
