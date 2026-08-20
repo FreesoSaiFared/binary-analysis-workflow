@@ -1,0 +1,121 @@
+name: RV1126 F3 real-video INT8 calibration
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - '.github/workflows/stage-rv1126-f3-real-video-calibration.yml'
+      - 'experiments/rv1126-generative-video-fabric/prepare_f3_real_video_calibration.py'
+      - 'experiments/rv1126-generative-video-fabric/run_f3_real_video_int8_conversion.py'
+      - 'experiments/rv1126-generative-video-fabric/build_f2_onnx.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-video-calibration:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+    steps:
+      - name: Bootstrap exact legacy host prerequisites
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl unzip git build-essential python3 python3-dev python3-pip \
+            libgl1 libglib2.0-0 ffmpeg
+
+      - uses: actions/checkout@v4
+
+      - name: Fetch verified Daybreak source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$GITHUB_WORKSPACE/f3-real-calibration"
+          mkdir -p "$O/source" "$O/evidence" "$O/models" "$O/corpus" "$O/int8"
+          SRC="$O/source/Daybreak_Timelapse_1080p60fps.webm"
+          URL='https://commons.wikimedia.org/wiki/Special:Redirect/file/Daybreak_Timelapse_1080p60fps.webm'
+          curl -fL --retry 5 --retry-delay 2 -o "$SRC" "$URL"
+          test "$(stat -c%s "$SRC")" -eq 38208095
+          echo '055d298a675ba89a0f88f6d95fd5f0d075b64613  '"$SRC" | sha1sum -c -
+          sha256sum "$SRC" | tee "$O/evidence/source-sha256.txt"
+          ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=r_frame_rate,avg_frame_rate,nb_read_frames -show_entries format=duration,size -of json "$SRC" | tee "$O/evidence/source-probe.json"
+
+      - name: Install exact RKNN-Toolkit 1.7.5 environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$GITHUB_WORKSPACE/f3-real-calibration"
+          DL=$(mktemp -d); cd "$DL"
+          curl -fL --retry 3 -o packages.zip https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.zip
+          echo 'f5de735b9b733d74f97db5cce46c2c70  packages.zip' | md5sum -c - | tee "$O/evidence/rockchip-package-md5.txt"
+          unzip -q packages.zip -d packages
+          WHEEL=$(find packages -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
+          test -n "$WHEEL"
+          sha256sum "$WHEEL" | tee "$O/evidence/rknn-wheel-sha256.txt"
+          python3 -m pip install --upgrade 'pip<24' wheel 'setuptools<76'
+          python3 -m pip install "$WHEEL"
+          python3 -m pip install 'tensorflow==2.2.0' 'torch==1.10.0' 'mxnet==1.5.0'
+          python3 -m pip install --no-deps 'torchvision==0.11.0'
+          python3 -m pip check | tee "$O/evidence/pip-check.txt" || true
+          python3 -m pip freeze | sort | tee "$O/evidence/pip-freeze.txt"
+          python3 - <<'PY' | tee "$O/evidence/environment-metadata.txt"
+          from importlib.metadata import version
+          for p in ('tensorflow','torch','torchvision','mxnet','rknn-toolkit','onnx','numpy','opencv-python'):
+              print('METADATA',p,version(p))
+          PY
+          python3 - <<'PY' 2>&1 | tee "$O/evidence/rknn-constructor.txt"
+          from rknn.api import RKNN
+          r=RKNN(verbose=True); r.release(); print('RV1126_F3_REAL_CAL_RKNN_CONSTRUCTOR_PASS')
+          PY
+
+      - name: Build proven positive graph and real-video corpus
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$GITHUB_WORKSPACE/f3-real-calibration"
+          SRC="$O/source/Daybreak_Timelapse_1080p60fps.webm"
+          python3 "$D/build_f2_onnx.py" --out "$O/models"
+          python3 "$D/prepare_f3_real_video_calibration.py" --source "$SRC" --out "$O/corpus" --count 16 --pair-delta 0.03333333333333333 \
+            2>&1 | tee "$O/evidence/corpus-build.log"
+          grep -F 'RV1126_F3_REAL_VIDEO_CALIBRATION_CORPUS_PASS' "$O/evidence/corpus-build.log"
+          cp "$O/corpus/CALIBRATION_MANIFEST.json" "$O/evidence/"
+          sha256sum "$O/models/rv1126_f2_positive.onnx" | tee "$O/evidence/positive-model-sha256.txt"
+
+      - name: Run real-video calibrated RV1126 INT8 conversion
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$GITHUB_WORKSPACE/f3-real-calibration"
+          python3 "$D/run_f3_real_video_int8_conversion.py" \
+            --model "$O/models/rv1126_f2_positive.onnx" \
+            --dataset "$O/corpus/dataset.txt" \
+            --manifest "$O/corpus/CALIBRATION_MANIFEST.json" \
+            --out "$O/int8" 2>&1 | tee "$O/evidence/real-video-int8.log"
+          grep -F 'RV1126_F3_REAL_VIDEO_INT8_CONVERTER_PASS' "$O/evidence/real-video-int8.log"
+          cp "$O/int8/F3_REAL_VIDEO_INT8_CONVERSION_RESULT.json" "$O/evidence/"
+          cp "$O/int8/rv1126_f2_positive_real_video_calibrated_int8.rknn" "$O/evidence/"
+
+      - name: Hash evidence and corpus
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$GITHUB_WORKSPACE/f3-real-calibration"
+          find "$O/evidence" "$O/corpus" -type f -print0 | sort -z | xargs -0 sha256sum | tee "$O/SHA256SUMS"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f3-real-video-int8-calibration
+          path: |
+            f3-real-calibration/evidence/**
+            f3-real-calibration/corpus/**
+            f3-real-calibration/SHA256SUMS
+          if-no-files-found: error
