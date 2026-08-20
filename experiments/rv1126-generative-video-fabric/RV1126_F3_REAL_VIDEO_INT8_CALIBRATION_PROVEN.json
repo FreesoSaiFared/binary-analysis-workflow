@@ -1,0 +1,123 @@
+{
+  "protocol": "RV1126_F3_REAL_VIDEO_INT8_CALIBRATION_PROVEN/1",
+  "status": "PROVEN_CONVERTER_CALIBRATION_PATH",
+  "scope": {
+    "proves": [
+      "RKNN-Toolkit 1.7.5 accepted the 16-sample real-video-derived proxy calibration corpus",
+      "the converter entered and completed quantization with the supplied corpus",
+      "the graph was built for target rv1126",
+      "an INT8 RKNN model was exported successfully"
+    ],
+    "does_not_prove": [
+      "trained-decoder reconstruction quality",
+      "that this proxy seven-channel packing is the final trained model input contract",
+      "RV1126 silicon latency or throughput",
+      "that a distinct RKNN byte stream alone proves better calibration quality"
+    ]
+  },
+  "lineage": {
+    "requested_original_run": 32421173581,
+    "requested_original_job": 96593322588,
+    "original_terminal_outcome": "failure",
+    "original_failure": "transient pip ReadTimeoutError while downloading TensorFlow 2.2.0; corpus/converter did not execute",
+    "minimal_environment_repair_commit": "9433ae1d0ebabe80576d41b66b8ba8593f100429",
+    "first_retry_run": 32422128826,
+    "first_retry_job": 96596217496,
+    "first_retry_terminal_outcome": "failure",
+    "first_retry_failure": "new corpus harness NameError from Python false literal after all legacy dependencies and RKNN constructor had passed",
+    "minimal_harness_repair_commit": "36b78b71f4c2de8c6990b0fb02b1053db99deb67",
+    "passing_run": 32422500121,
+    "passing_job": 96597316249,
+    "passing_head_sha": "36b78b71f4c2de8c6990b0fb02b1053db99deb67"
+  },
+  "environment": {
+    "container": "ubuntu:20.04",
+    "python": "3.8",
+    "rknn_toolkit": "1.7.5",
+    "tensorflow": "2.2.0",
+    "torch_metadata": "1.10.0",
+    "torch_runtime_observation": "1.10.0+cu102",
+    "torchvision": "0.11.0",
+    "mxnet": "1.5.0",
+    "onnx": "1.10.0",
+    "numpy": "1.19.5",
+    "opencv_python": "4.5.1.48",
+    "rknn_wheel_sha256": "1bda9927750eee16d97df02fe14cfbdc36cefeeefa8934c8e7e4ccb6ca03dc6c",
+    "historical_torchvision_metadata_warning_preserved": true
+  },
+  "source": {
+    "filename": "Daybreak_Timelapse_1080p60fps.webm",
+    "sha256": "40a143a45cd4bd0572a40d5026c35315d7e0eab94a25aac138367830c37234aa",
+    "native_temporal_cadence": "~29.97 fps; this source remains classified as normalized-not-native-60 in F3 quality evidence"
+  },
+  "calibration_proxy": {
+    "sample_count": 16,
+    "tensor_shape_hwc": [360, 640, 7],
+    "dtype": "uint8",
+    "semantic_groups": [
+      {"channels": [0, 1, 2], "meaning": "left RGB"},
+      {"channels": [3, 4, 5], "meaning": "right RGB"},
+      {"channels": [6], "meaning": "phase, byte range 0..255"}
+    ],
+    "pair_delta_seconds": 0.03333333333333333,
+    "manifest_sha256": "5ae0fbc82307b0f3c67d2243c8adf00ed6dc4b4f08f324bafb37f5e70b4b4a0c",
+    "dataset_file_sha256": "f9970a6efa6c6101693361255a0fd89fe7170b38e2ed2d63035e6ee637c3f96f",
+    "all_16_tensor_shapes_dtypes_and_manifest_hashes_independently_verified": true,
+    "recalibration_rule": "A future trained decoder whose seven input channels have different semantics, preprocessing, ranges, ordering, or distributions MUST regenerate calibration data using its actual production input contract."
+  },
+  "converter": {
+    "target": "rv1126",
+    "positive_onnx_sha256": "1d1f8a4d54ba2de0fa9ee60028ca1791eb5c2f653739f81e69187c5a6ed7758f",
+    "load_ret": 0,
+    "build_ret": 0,
+    "export_ret": 0,
+    "do_quantization": true,
+    "log_evidence": [
+      "all 16 daybreak_real_calibration_XX.npy paths were consumed by RKNN preprocessing",
+      "I Start quantization...",
+      "I Quantization start...",
+      "I Quantization complete.",
+      "I End quantization...",
+      "I Build rv1126_f2_positive complete.",
+      "RV1126_F3_REAL_VIDEO_INT8_CONVERTER_PASS"
+    ],
+    "exported_rknn_size_bytes": 38640,
+    "exported_rknn_sha256": "85475ecfd75326566bd093ef0f6f1cd6da69688dcc31f8c38f02dda9262826c1",
+    "converter_result_json_sha256": "02897ec21fb2b3d4b000acfeb1e0ee05feffcfc5b2c27d9f6d79066a6ddedc63",
+    "converter_log_sha256": "b878263be5d4deb8518f9399ad8fa477f46d9ffb896556a0c02a05b152d32904"
+  },
+  "artifact": {
+    "artifact_id": 9426312311,
+    "name": "rv1126-f3-real-video-int8-calibration",
+    "api_size_bytes": 6647040,
+    "api_digest_sha256": "13109acff177e843ae789a46d09529ae8f344a61d55f5b8e94c4be34d1d9311f",
+    "downloaded_zip_sha256": "13109acff177e843ae789a46d09529ae8f344a61d55f5b8e94c4be34d1d9311f",
+    "sha256sums_file_sha256": "2cc0881d43636d21682f4e1fc3022214a0cc8af8b8fd684283884a478191451d",
+    "sha256sums_entries": 32,
+    "sha256sums_all_verified": true,
+    "independent_artifact_verification": "Downloaded the API-resolved finalized artifact, matched ZIP digest, unpacked it independently, verified all SHA256SUMS entries, verified all 16 NPY tensor shapes/dtypes/manifest hashes, and recomputed the RKNN size and SHA-256."
+  },
+  "comparison_to_prior_synthetic_calibration": {
+    "synthetic_path": {
+      "samples": 4,
+      "kind": "deterministic synthetic 360x640x7 HWC uint8 converter-path discriminator",
+      "rknn_size_bytes": 38642,
+      "rknn_sha256": "935d64c927d2cce924f547c8af5fb23c077ee2846098d496f4228113f00bf02a",
+      "status": "previously proven; not rerun"
+    },
+    "real_video_proxy_path": {
+      "samples": 16,
+      "kind": "real Daybreak RGB frame pairs plus phase proxy",
+      "rknn_size_bytes": 38640,
+      "rknn_sha256": "85475ecfd75326566bd093ef0f6f1cd6da69688dcc31f8c38f02dda9262826c1"
+    },
+    "interpretation": "Both paths prove successful RV1126-targeted quantized conversion. The real-video proxy provides input statistics derived from real image content and a full-range phase feature. Different export size/hash is recorded but is not treated as proof of quality improvement or deterministic calibration impact because RKNN export-byte determinism has not been established."
+  },
+  "claim_separation": {
+    "converter_support": "proven for this fixed Conv/ReLU/Add graph and real-video proxy calibration path",
+    "image_quality": "not evaluated by this calibration gate",
+    "aggregate_throughput": "unchanged F1 model claim only",
+    "per_frame_latency": "unchanged F1 model claim only",
+    "rv1126_silicon_timing": "not measured"
+  }
+}
