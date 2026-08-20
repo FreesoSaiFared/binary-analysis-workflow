@@ -114,7 +114,7 @@ def model_contract() -> dict:
 def decode_source_360(src: Path, raw: Path):
     run([
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", src,
-        "-an", "-vf", f"scale={W}:{H}:flags=lanczos", "-pix_fmt", "rgb24",
+        "-an", "-vsync", "0", "-vf", f"scale={W}:{H}:flags=lanczos", "-pix_fmt", "rgb24",
         "-f", "rawvideo", raw,
     ])
     expected = EXPECTED_SOURCE_FRAMES * FRAME_BYTES
