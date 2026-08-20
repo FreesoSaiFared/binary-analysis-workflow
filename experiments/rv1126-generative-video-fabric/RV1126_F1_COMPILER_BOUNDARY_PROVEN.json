@@ -1,0 +1,128 @@
+{
+  "protocol": "RV1126_F1_COMPILER_BOUNDARY_PROVEN/1",
+  "status": "PROVEN_COMPILER_BOUNDARY_NO_SILICON_TIMING",
+  "target": "original RV1126",
+  "graph": {
+    "resolution": [640, 360],
+    "input_channels": 7,
+    "hidden_channels": 16,
+    "residual_blocks": 4,
+    "total_macs": 4578508800,
+    "gmac": 4.5785088,
+    "gop_if_mac_equals_2_ops": 9.1570176
+  },
+  "accepted_operator_audit": {
+    "Conv": {"observed_mapped_count": 10, "rknn_mapping": "convolution"},
+    "ReLU": {"observed_mapped_count": 9, "rknn_mapping": "relu"},
+    "Add": {"observed_mapped_count": 4, "rknn_mapping": "add"},
+    "target_cpu_fallback_observed": false,
+    "npu_optimizer": "PUMA"
+  },
+  "rejected_from_tested_npu_graph": {
+    "Resize": {
+      "scope": "the exact tested ONNX Resize formulation only; not a universal claim about every Resize form",
+      "observed_result": "load rejected before build/export",
+      "observed_reason": "RKNN 1.7.5 failed matching Resize_resize_negative and reported the op may not yet be supported; r_resize_check raised IndexError",
+      "target_cpu_fallback_observed": false
+    },
+    "warp_or_gridsample_like": {
+      "scope": "the exact tested custom WarpLike control representing the warp/GridSample-like class",
+      "observed_result": "shape/import rejected before build/export",
+      "observed_reason": "WarpLike was unregistered; RKNN shape inference raised KeyError/ValueError",
+      "target_cpu_fallback_observed": false
+    }
+  },
+  "external_operations_not_in_proven_npu_graph": [
+    "resize/scale",
+    "warp/reprojection",
+    "codec and frame plumbing"
+  ],
+  "network_adjusted_live_deadline_model": {
+    "status": "SOFTWARE_MODEL_DERIVED_NOT_RV1126_SILICON_TIMING",
+    "frame_deadline_ms_at_60fps": 16.667,
+    "modeled_fixed_non_compute_overhead_ms": 1.47,
+    "modeled_available_compute_window_ms": 15.197,
+    "graph_gop": 9.1570176,
+    "utilization_40_percent": {
+      "modeled_compute_ceiling_gop": 8.8355358,
+      "modeled_margin_gop": -0.3214818,
+      "result": "does_not_fit_model"
+    },
+    "utilization_41_5_percent": {
+      "modeled_compute_ceiling_gop": 9.1668683925,
+      "modeled_margin_gop": 0.0098507925,
+      "result": "barely_fits_model_before_external_operator_cost"
+    },
+    "interpretation": "The modeled 41.5% crossover is optimistic. Resize and warp/reprojection were rejected from the tested RKNN NPU graph and therefore their external execution cost is not represented inside the 9.1570176-GOP NPU graph; any nonzero external cost consumes the already-thin modeled margin. This is a planning model, not measured RV1126 execution time."
+  },
+  "throughput_vs_latency_separation": {
+    "aggregate_fabric_budget": "rv1126_video_fabric_f1_budget.csv remains an aggregate/offline throughput-capacity model.",
+    "live_deadline_budget": "RV1126_F2_NETWORK_ADJUSTED_LIVE_BUDGET.json is a separate modeled per-frame 60-fps deadline budget.",
+    "forbidden_inference": "Do not convert aggregate/offline throughput into a 16.667-ms live-latency claim without measured RV1126 silicon execution evidence."
+  },
+  "compiler_evidence": {
+    "primary_hardened": {
+      "runner_os": "Ubuntu 24.04.4",
+      "python": "3.8.18",
+      "rknn_toolkit": "1.7.5",
+      "tensorflow": "2.2.0",
+      "torch_metadata": "1.10.0",
+      "torch_runtime": "1.10.0+cu102",
+      "torchvision_metadata": "0.11.0",
+      "torchvision_runtime": "0.11.0+cu102",
+      "mxnet": "1.5.0",
+      "onnx": "1.10.0",
+      "numpy": "1.19.5",
+      "run_id": 32418097589,
+      "job_id": 96583788458,
+      "commit": "cabda74bb1ed0295fbace82bde5db567ebdfdac9",
+      "artifact_id": 9424712790,
+      "artifact_zip_sha256": "073116f10073d5e330a1130fe6077a798d03f149109580b032fb667895b96e05",
+      "artifact_size_bytes": 4599452,
+      "float_rknn": {"size_bytes": 57940, "sha256": "d88eefb63f05cd722ca4fe2eacd78ab935121721eb415408143f0a7952c908a3"},
+      "synthetic_calibration_int8_rknn": {"size_bytes": 38642, "sha256": "935d64c927d2cce924f547c8af5fb23c077ee2846098d496f4228113f00bf02a"}
+    },
+    "independent_ubuntu2004_cleanroom": {
+      "container": "ubuntu:20.04",
+      "container_digest": "sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214",
+      "os": "Ubuntu 20.04.6 LTS",
+      "python": "3.8.10",
+      "rknn_toolkit": "1.7.5",
+      "rknn_wheel_sha256": "1bda9927750eee16d97df02fe14cfbdc36cefeeefa8934c8e7e4ccb6ca03dc6c",
+      "rockchip_package_archive_md5": "f5de735b9b733d74f97db5cce46c2c70",
+      "tensorflow": "2.2.0",
+      "torch_metadata": "1.10.0",
+      "torch_runtime": "1.10.0+cu102",
+      "torchvision_metadata": "0.11.0",
+      "torchvision_runtime": "0.11.0+cu102",
+      "mxnet": "1.5.0",
+      "onnx": "1.10.0",
+      "numpy": "1.19.5",
+      "opencv_python_metadata": "4.5.1.48",
+      "opencv_runtime": "4.5.1",
+      "known_legacy_metadata_mismatch": "torchvision 0.11.0 requires torch==1.10.0+cu102 in its yanked metadata while Rockchip's CPU requirements pin torch==1.10.0; both runtime modules report +cu102 and import successfully",
+      "environment_repairs_only": ["libgl1", "libglib2.0-0"],
+      "run_id": 32419633330,
+      "job_id": 96588600621,
+      "commit": "d9b2cc1178cfaa388f7eb35209c577c16fcc580e",
+      "artifact_id": 9425262054,
+      "artifact_zip_sha256": "5a6195228b42cee4aca0b1c7c61522080f491f61a9a616505e062e7c07ad0440",
+      "artifact_size_bytes": 4595289,
+      "constructor_marker": "UBUNTU2004_RKNN_1_7_5_CONSTRUCTOR_PASS",
+      "operator_gate_marker": "UBUNTU2004_F2_OPERATOR_GATE_PASS",
+      "no_target_cpu_fallback_marker": "UBUNTU2004_F2_NO_TARGET_CPU_FALLBACK_OBSERVED",
+      "int8_marker": "RV1126_F2_INT8_CONVERTER_PATH_PASS",
+      "observed_operator_mappings": {"conv": 10, "relu": 9, "add": 4},
+      "float_rknn": {"size_bytes": 57940, "sha256": "d88eefb63f05cd722ca4fe2eacd78ab935121721eb415408143f0a7952c908a3"},
+      "synthetic_calibration_int8_rknn": {"size_bytes": 38642, "sha256": "935d64c927d2cce924f547c8af5fb23c077ee2846098d496f4228113f00bf02a"},
+      "cross_environment_byte_identity_observed": true,
+      "byte_identity_required_for_acceptance": false
+    }
+  },
+  "scope_limits": [
+    "No RV1126 silicon execution time or latency was measured by these compiler runs.",
+    "No simulator, QEMU, GitHub-host CPU time or converter time is treated as RV1126 timing.",
+    "Synthetic 7-channel INT8 calibration proves the converter path only; it does not prove neural reconstruction quality.",
+    "The tested Resize and WarpLike failures establish this graph boundary, not universal impossibility for every alternative formulation or external accelerator path."
+  ]
+}
