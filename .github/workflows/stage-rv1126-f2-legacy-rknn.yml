@@ -43,11 +43,12 @@ jobs:
               m=onnx.load(str(p))
               if 'warp' not in p.name:
                   onnx.checker.check_model(m)
-              print('ONNX_CONTROL',p.name,'opset',[(x.domain,x.version) for x in m.opset_import],
+              print('ONNX_CONTROL',p.name,'ir',m.ir_version,
+                    'opset',[(x.domain,x.version) for x in m.opset_import],
                     'ops',[n.op_type for n in m.graph.node])
           PY
 
-      - name: Install exact legacy RKNN-Toolkit 1.7.5 environment
+      - name: Install and diagnose exact legacy RKNN-Toolkit 1.7.5 environment
         shell: bash
         run: |
           set -euxo pipefail
@@ -62,33 +63,43 @@ jobs:
           python -m pip install "$WHEEL"
           # Exact Rockchip v1.7.5 packages/requirements-cpu-ubuntu20.04_py38.txt:
           # tensorflow==2.2.0, torch==1.10.0, torchvision==0.11.0, mxnet==1.5.0.
-          # The old torchvision 0.11.0 wheel currently advertises torch==1.10.0+cu102,
-          # while Rockchip's own requirements file pins torch==1.10.0. Install the
-          # three resolvable pins normally, then the exact torchvision wheel with
-          # --no-deps. Preserve pip-check output as evidence instead of hiding it.
+          # PyPI yanked torchvision 0.11.0 because its wheel metadata requires the
+          # nonexistent-on-PyPI local version torch==1.10.0+cu102. Preserve this
+          # historical inconsistency but install Rockchip's exact named versions.
           python -m pip install 'tensorflow==2.2.0' 'torch==1.10.0' 'mxnet==1.5.0'
           python -m pip install --no-deps 'torchvision==0.11.0'
           python -m pip check | tee "$O/results/pip-check.txt" || true
-          python - <<'PY' | tee "$O/results/environment.txt"
+          python - <<'PY' | tee "$O/results/environment-metadata.txt"
           from importlib.metadata import version
-          import tensorflow as tf
-          import torch, torchvision, mxnet
+          for p in ('tensorflow','torch','torchvision','mxnet','rknn-toolkit','onnx','numpy'):
+              print('LEGACY_ENV_METADATA',p,version(p))
+          PY
+          probe () {
+            name="$1"; shift
+            set +e
+            "$@" >"$O/results/import-${name}.txt" 2>&1
+            rc=$?
+            set -e
+            echo "IMPORT_PROBE ${name} rc=${rc}" | tee -a "$O/results/import-summary.txt"
+            cat "$O/results/import-${name}.txt"
+            return 0
+          }
+          probe tensorflow python -X faulthandler -c 'import tensorflow as x; print("tensorflow",x.__version__)'
+          probe torch python -X faulthandler -c 'import torch as x; print("torch",x.__version__)'
+          probe torchvision python -X faulthandler -c 'import torchvision as x; print("torchvision",x.__version__)'
+          probe mxnet python -X faulthandler -c 'import mxnet as x; print("mxnet",x.__version__)'
+          set +e
+          python -X faulthandler - <<'PY' >"$O/results/rknn-constructor.txt" 2>&1
           from rknn.api import RKNN
-          print('LEGACY_ENV_METADATA',
-                'tensorflow='+version('tensorflow'),
-                'torch='+version('torch'),
-                'torchvision='+version('torchvision'),
-                'mxnet='+version('mxnet'),
-                'rknn-toolkit='+version('rknn-toolkit'))
-          print('LEGACY_ENV_RUNTIME',
-                'tensorflow='+tf.__version__,
-                'torch='+torch.__version__,
-                'torchvision='+torchvision.__version__,
-                'mxnet='+mxnet.__version__)
           x=RKNN(verbose=True)
           x.release()
           print('RKNN_TOOLKIT_1_7_5_CONSTRUCTOR_PASS')
           PY
+          ctor_rc=$?
+          set -e
+          echo "RKNN_CONSTRUCTOR_RC=${ctor_rc}" | tee -a "$O/results/import-summary.txt"
+          cat "$O/results/rknn-constructor.txt"
+          test "$ctor_rc" -eq 0
 
       - name: Run RV1126 graph-conversion probes
         shell: bash
