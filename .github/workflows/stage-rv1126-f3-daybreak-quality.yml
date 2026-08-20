@@ -18,6 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install distribution FFmpeg
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Record benchmark environment
         shell: bash
         run: |
@@ -29,6 +36,7 @@ jobs:
           python3 --version > "$O/evidence/python-version.txt" 2>&1
           ffmpeg -version > "$O/evidence/ffmpeg-version.txt" 2>&1
           ffprobe -version > "$O/evidence/ffprobe-version.txt" 2>&1
+          dpkg-query -W -f='${Package}=${Version}\n' ffmpeg > "$O/evidence/ffmpeg-package.txt"
           sha256sum experiments/rv1126-generative-video-fabric/run_f3_quality_baseline.py > "$O/evidence/harness-sha256.txt"
 
       - name: Fetch and verify Daybreak ground truth
