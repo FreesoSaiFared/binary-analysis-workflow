@@ -162,9 +162,10 @@ def main() -> int:
     }, sort_keys=True), flush=True)
 
     reference = out / "reference_native60_1080p.mkv"
-    # Spatial normalization only. No fps filter is allowed here.
+    # Spatial normalization only. No fps filter is allowed here. The exact
+    # 180-frame budget, not a redundant timestamp duration cap, defines the segment.
     encode(src, reference, "scale=1920:1080:flags=lanczos,format=yuv420p",
-           start=args.start, duration=args.duration, frames=180)
+           start=args.start, duration=None, frames=180)
     if decoded_frame_count(reference) != 180:
         raise SystemExit("NATIVE60_REFERENCE_FRAME_COUNT_FAIL")
     duplicate_evidence = adjacent_exact_duplicate_count(reference)
@@ -208,12 +209,12 @@ def main() -> int:
             "license": args.license,
         },
         "reference": {
-            "construction": "spatial normalization to 1920x1080 yuv420p only; no temporal fps normalization",
+            "construction": "spatial normalization to 1920x1080 yuv420p only; no temporal fps normalization; exact 180-frame output budget",
             "fps_filter_applied": False,
             "reference_frames": 180,
             "adjacent_exact_duplicate_evidence": duplicate_evidence,
         },
-        "segment": {"start_seconds": args.start, "duration_seconds": args.duration, "reference_frames": 180},
+        "segment": {"start_seconds": args.start, "nominal_duration_seconds": args.duration, "reference_frames": 180},
         "scope": "native-60 host-side FFmpeg baseline quality only; no trained-neural quality and no RV1126 timing claim",
         "results": rows,
     }
