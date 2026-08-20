@@ -122,8 +122,8 @@ def main() -> int:
         "sample_count": args.count,
         "dataset_sha256": sha256(dataset),
         "samples": samples,
-        "quality_claim": false,
-        "rv1126_timing_claim": false,
+        "quality_claim": False,
+        "rv1126_timing_claim": False,
     }
     (out / "CALIBRATION_MANIFEST.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     print("RV1126_F3_REAL_VIDEO_CALIBRATION_CORPUS_PASS", json.dumps({
