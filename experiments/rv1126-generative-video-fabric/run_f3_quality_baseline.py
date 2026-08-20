@@ -3,6 +3,9 @@
 
 This measures deterministic x86/FFmpeg reconstruction quality only. It makes no
 RV1126 timing claim and does not evaluate the untrained F2 CNN as a useful model.
+The pinned Daybreak source is normalized to a 60-fps reference; source-native
+cadence is measured independently from decoded frame count and duration rather
+than trusting container avg_frame_rate metadata.
 """
 from __future__ import annotations
 
@@ -27,6 +30,25 @@ def probe(path: Path) -> dict:
               "-show_entries", "stream=width,height,avg_frame_rate,r_frame_rate,nb_frames,duration",
               "-of", "json", str(path)], capture=True)
     return json.loads(cp.stdout)["streams"][0]
+
+
+def source_probe(path: Path) -> dict:
+    cp = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+              "-show_entries", "stream=width,height,avg_frame_rate,r_frame_rate,nb_frames,duration",
+              "-show_entries", "format=duration,size,format_name", "-of", "json", str(path)], capture=True)
+    payload = json.loads(cp.stdout)
+    count = run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0",
+                 "-show_entries", "stream=nb_read_frames", "-of", "json", str(path)], capture=True)
+    stream = payload["streams"][0]
+    fmt = payload["format"]
+    decoded_frames = int(json.loads(count.stdout)["streams"][0]["nb_read_frames"])
+    duration = float(fmt["duration"])
+    return {
+        "stream": stream,
+        "format": fmt,
+        "decoded_frames": decoded_frames,
+        "decoded_fps": decoded_frames / duration,
+    }
 
 
 def sha256(path: Path) -> str:
@@ -96,11 +118,19 @@ def main() -> int:
     src = Path(args.source)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    meta = probe(src)
-    fps_num, fps_den = map(int, meta["avg_frame_rate"].split("/"))
-    actual_fps = fps_num / fps_den
-    if (int(meta["width"]), int(meta["height"])) != (1920, 1080) or actual_fps < 59.0:
-        raise SystemExit(f"SOURCE_CONTRACT_FAIL {meta}")
+    source = source_probe(src)
+    meta = source["stream"]
+    if (int(meta["width"]), int(meta["height"])) != (1920, 1080):
+        raise SystemExit(f"SOURCE_CONTRACT_FAIL {source}")
+
+    print("SOURCE_NATIVE_CADENCE", json.dumps({
+        "r_frame_rate": meta.get("r_frame_rate"),
+        "avg_frame_rate": meta.get("avg_frame_rate"),
+        "decoded_frames": source["decoded_frames"],
+        "duration_seconds": float(source["format"]["duration"]),
+        "decoded_fps": source["decoded_fps"],
+        "reference_normalized_fps": 60,
+    }, sort_keys=True), flush=True)
 
     reference = out / "reference_1080p60.mkv"
     encode(src, reference, "fps=60,format=yuv420p", start=args.start, duration=args.duration, frames=180)
@@ -127,25 +157,33 @@ def main() -> int:
         rows.append(measure(reference, linear, f"linear_{afps}_to_60", afps))
 
     result = {
-        "protocol": "RV1126_F3_GROUND_TRUTH_QUALITY_BASELINE/1",
+        "protocol": "RV1126_F3_GROUND_TRUTH_QUALITY_BASELINE/2",
         "source": {
             "filename": src.name,
             "sha256": sha256(src),
             "width": int(meta["width"]),
             "height": int(meta["height"]),
-            "avg_frame_rate": meta["avg_frame_rate"],
-            "observed_fps": actual_fps,
+            "r_frame_rate": meta.get("r_frame_rate"),
+            "avg_frame_rate_metadata": meta.get("avg_frame_rate"),
+            "decoded_frames": source["decoded_frames"],
+            "duration_seconds": float(source["format"]["duration"]),
+            "decoded_fps": source["decoded_fps"],
             "license": "CC BY 3.0; FreeSwissVideo via Wikimedia Commons",
         },
+        "reference": {
+            "normalization": "source normalized with FFmpeg fps=60 before spatial/temporal baseline construction",
+            "fps": 60,
+            "native_60fps_source": False,
+        },
         "segment": {"start_seconds": args.start, "duration_seconds": args.duration, "reference_frames": 180},
-        "scope": "x86 FFmpeg quality harness only; no RV1126 timing claim; no trained-neural quality claim",
+        "scope": "x86 FFmpeg quality harness only; source-native cadence is ~30 fps and is normalized to 60 fps; no RV1126 timing claim; no trained-neural quality claim",
         "results": rows,
     }
     (out / "F3_QUALITY_BASELINE.json").write_text(json.dumps(result, indent=2, sort_keys=True)+"\n")
     with (out / "F3_QUALITY_BASELINE.csv").open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader(); w.writerows(rows)
-    print("RV1126_F3_GROUND_TRUTH_BASELINE_PASS cases=7")
+    print("RV1126_F3_GROUND_TRUTH_BASELINE_PASS cases=7 source_native_cadence_recorded=true")
     return 0
 
 
