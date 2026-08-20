@@ -1,0 +1,84 @@
+{
+  "protocol": "RV1126_F3_NATIVE60_QUALITY_PROVEN/1",
+  "status": "PROVEN_NATIVE60_REFERENCE_BASELINE",
+  "run": {
+    "run_id": 32423869710,
+    "job_id": 96601548190,
+    "commit": "c0e583f7b84a8835ea75c19264474ddac1039598",
+    "artifact_id": 9426917219,
+    "artifact_name": "rv1126-f3-native60-quality-evidence",
+    "artifact_size_bytes": 9576,
+    "artifact_zip_sha256": "b7839088af916f13bc8b7e942e1f4c9d55c238e471630c65cc92e0262751c271"
+  },
+  "independent_artifact_verification": {
+    "downloaded_from_github_artifact_api": true,
+    "archive_sha256_matches_github_digest": true,
+    "internal_sha256sums_entries": 17,
+    "internal_sha256sums_failures": 0,
+    "sha256sums_path_note": "The archived SHA256SUMS records original GitHub-runner absolute paths. Independent verification rebased each entry to the extracted basename before hashing; all 17 payload hashes matched.",
+    "reference_and_candidate_outputs_verified": 8,
+    "decoded_frames_each": 180,
+    "all_frame_counts_passed": true
+  },
+  "source": {
+    "filename": "FFF-Sprueche_in_Hof_20191129_UHD-I_60_FPS.webm",
+    "license": "CC BY-SA 4.0; self-published Wikimedia Commons footage",
+    "width": 3840,
+    "height": 2160,
+    "codec": "vp9",
+    "size_bytes": 479019896,
+    "sha1": "6166db6c22a19da63816cd5e65dbcd56e2a3e6fb",
+    "sha256": "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a",
+    "r_frame_rate": "60/1",
+    "avg_frame_rate": "60/1",
+    "decoded_frames": 2340,
+    "duration_seconds": 39.007,
+    "decoded_fps": 59.98923270182275,
+    "native_60fps_source": true
+  },
+  "reference": {
+    "construction": "spatial normalization to 1920x1080 yuv420p only; no temporal fps normalization; exact 180-frame output budget",
+    "fps_filter_applied": false,
+    "reference_frames": 180,
+    "adjacent_exact_duplicates": 0
+  },
+  "results": [
+    {"case":"spatial_only_360p60","authoritative_fps":60,"psnr_db":25.854811,"ssim":0.815847},
+    {"case":"hold_5_to_60","authoritative_fps":5,"psnr_db":21.580229,"ssim":0.702333},
+    {"case":"linear_5_to_60","authoritative_fps":5,"psnr_db":21.399589,"ssim":0.678064},
+    {"case":"hold_10_to_60","authoritative_fps":10,"psnr_db":23.175333,"ssim":0.747238},
+    {"case":"linear_10_to_60","authoritative_fps":10,"psnr_db":23.169048,"ssim":0.732333},
+    {"case":"hold_15_to_60","authoritative_fps":15,"psnr_db":23.894411,"ssim":0.767347},
+    {"case":"linear_15_to_60","authoritative_fps":15,"psnr_db":23.788984,"ssim":0.751605}
+  ],
+  "temporal_findings": {
+    "5fps_linear_minus_hold": {"psnr_db": -0.180640, "ssim": -0.024269},
+    "10fps_linear_minus_hold": {"psnr_db": -0.006285, "ssim": -0.014905},
+    "15fps_linear_minus_hold": {"psnr_db": -0.105427, "ssim": -0.015742},
+    "ordering": "hold beats FFmpeg linear interpolation at 5, 10 and 15 authoritative fps on both PSNR and SSIM against genuine native-60 temporal ground truth"
+  },
+  "comparison_to_daybreak_normalized_reference": {
+    "comparison_mode": "side_by_side_only_do_not_merge_benchmark_classes",
+    "daybreak_record": "RV1126_F3_DAYBREAK_QUALITY_PROVEN.json",
+    "daybreak_reference_class": "native ~29.97-fps source normalized to 60 fps with FFmpeg fps=60",
+    "native60_reference_class": "genuine 60/1 source; no temporal fps normalization",
+    "daybreak_linear_minus_hold": {
+      "5fps": {"psnr_db": -0.447605, "ssim": -0.000286},
+      "10fps": {"psnr_db": -0.400460, "ssim": -0.000353},
+      "15fps": {"psnr_db": -0.155542, "ssim": -0.000153}
+    },
+    "native60_linear_minus_hold": {
+      "5fps": {"psnr_db": -0.180640, "ssim": -0.024269},
+      "10fps": {"psnr_db": -0.006285, "ssim": -0.014905},
+      "15fps": {"psnr_db": -0.105427, "ssim": -0.015742}
+    },
+    "conclusion": "The qualitative hold-over-linear ordering is preserved on genuine native-60 footage, so that ordering is not solely an artifact of Daybreak 30-to-60 normalization. Magnitudes are benchmark-class-specific and must not be pooled."
+  },
+  "scope_limits": [
+    "Host-side FFmpeg image-quality evidence only.",
+    "No trained-neural reconstruction quality was measured by this gate.",
+    "No RV1126 silicon timing was measured.",
+    "No converter success or RKNN export is interpreted as runtime image quality.",
+    "Normalized Daybreak and genuine native-60 are distinct benchmark classes and are not merged."
+  ]
+}
