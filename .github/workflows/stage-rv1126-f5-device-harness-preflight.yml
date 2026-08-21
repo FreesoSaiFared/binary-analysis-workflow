@@ -18,11 +18,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compile harness without executing RKNN or hardware paths
+      - name: Compile Python harnesses without executing RKNN or hardware paths
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile experiments/rv1126-generative-video-fabric-device/run_f5_rv1126_device_acceptance.py
+          python3 -m py_compile \
+            experiments/rv1126-generative-video-fabric-device/run_f5_rv1126_device_acceptance.py \
+            experiments/rv1126-generative-video-fabric-device/prepare_f5b_semantic_probe.py
+
+      - name: Syntax-check F5B against pinned original RKNPU1 1.7.5 header
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rknpu1
+          curl -fsSL \
+            https://raw.githubusercontent.com/rockchip-linux/rknpu/e0cb42b645707ca12518c43dcee7c4968cbe918f/rknn/include/rknn_runtime.h \
+            -o /tmp/rknpu1/rknn_runtime.h
+          git_hash=$(git ls-remote https://github.com/rockchip-linux/rknpu.git refs/heads/master | awk '{print $1}')
+          test "$git_hash" = e0cb42b645707ca12518c43dcee7c4968cbe918f
+          gcc -std=c11 -Wall -Wextra -Werror -fsyntax-only -I/tmp/rknpu1 \
+            experiments/rv1126-generative-video-fabric-device/f5b_rknpu1_model_timing.c
+          grep -F 'int64_t run_duration; /* real inference time (us) */' /tmp/rknpu1/rknn_runtime.h
+          echo RV1126_F5B_PINNED_RKNPU1_C_API_STATIC_PREFLIGHT_PASS
 
       - name: Verify sealed-input and scope contracts
         shell: bash
@@ -32,23 +49,32 @@ jobs:
           import ast, json, pathlib
           d = pathlib.Path('experiments/rv1126-generative-video-fabric-device')
           contract = json.loads((d/'F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json').read_text())
+          driver = json.loads((d/'F5_RKNPU1_DRIVER_PREREQUISITES.json').read_text())
           assert contract['status'] == 'READY_FOR_PHYSICAL_ORIGINAL_RV1126_NOT_YET_PROVEN'
           assert contract['sealed_inputs']['trained_rknn_sha256'] == 'f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae'
           assert contract['sealed_inputs']['native60_source_sha256'] == 'af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a'
           assert contract['runtime_gate']['simulator_is_forbidden'] is True
-          src = (d/'run_f5_rv1126_device_acceptance.py').read_text()
-          ast.parse(src)
-          required = [
+          assert driver['platform']['userspace_driver_family'] == 'linux-armhf-puma'
+          assert driver['timing_evidence']['api'] == 'RKNN_QUERY_PERF_RUN'
+          py = (d/'run_f5_rv1126_device_acceptance.py').read_text()
+          probe = (d/'prepare_f5b_semantic_probe.py').read_text()
+          c = (d/'f5b_rknpu1_model_timing.c').read_text()
+          ast.parse(py); ast.parse(probe)
+          required_py = [
               'init_runtime(target="rv1126", device_id=device["adb_serial"])',
               'data_format=["nhwc"]',
               'F5A_REAL_RV1126_RUNTIME_QUALITY_PASS',
               'NOT_PROVEN_BY_HOST_WALL_CLOCK',
               'rv1126b',
           ]
-          for needle in required:
-              assert needle in src, needle
-          assert 'EXPECTED_RKNN_SHA = "f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae"' in src
-          assert 'EXPECTED_SOURCE_SHA = "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a"' in src
+          for needle in required_py:
+              assert needle in py, needle
+          assert 'EXPECTED_RKNN_SHA = "f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae"' in py
+          assert 'EXPECTED_SOURCE_SHA = "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a"' in py
+          assert 'PHASE_BYTE = 128' in probe
+          assert 'RKNN_QUERY_PERF_RUN' in c
+          assert 'HOST_CONNECTED_PYTHON_ADB_CALL_WALL_TIME_DIAGNOSTIC_ONLY' in py
+          assert 'full_pipeline_1080p60' in c
           print('RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PASS')
           print('NO_RV1126_RUNTIME_OR_SILICON_EXECUTION_PERFORMED')
           PY
