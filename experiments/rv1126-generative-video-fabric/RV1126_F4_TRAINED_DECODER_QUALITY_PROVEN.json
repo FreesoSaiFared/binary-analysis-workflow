@@ -1,0 +1,499 @@
+{
+  "acceptance": {
+    "float_beats_hold_all_tested_rates": true,
+    "float_beats_linear_all_tested_rates": true,
+    "ground_truth": "real native-60 intermediate frames",
+    "matched_semantics_reference_ptq": "PASS",
+    "max_abs_reference_int8_minus_float_psnr_db": 0.0012539999999994222,
+    "max_abs_reference_int8_minus_float_ssim": 0.00011900000000009126,
+    "reference_framework_trained_decoder_quality": "PASS",
+    "rknn_int8_converter": "PASS",
+    "rknn_runtime_image_quality": "NOT_TESTED",
+    "rv1126_silicon_timing": "NOT_TESTED",
+    "tested_authoritative_rates_fps": [
+      5,
+      10,
+      15
+    ]
+  },
+  "architecture": {
+    "add_nodes": 4,
+    "allowed_onnx_ops": [
+      "Conv",
+      "Relu",
+      "Add"
+    ],
+    "channels": 16,
+    "conv_nodes": 10,
+    "gop_multiply_plus_add": 9.1570176,
+    "input_nchw": [
+      1,
+      7,
+      360,
+      640
+    ],
+    "macs_per_frame": 4578508800,
+    "output_nchw": [
+      1,
+      3,
+      360,
+      640
+    ],
+    "relu_nodes": 9,
+    "residual_blocks": 4
+  },
+  "calibration": {
+    "dataset_sha256": "3d468a4aa45cf226a188e222f71c7319cf68e46cf994ccf392dc6781e264d226",
+    "independent_tensor_checks": {
+      "failures": 0,
+      "phase_formula_index_consistency_failures": 0,
+      "samples_checked": 16,
+      "shape_dtype_phase_constant_and_manifest_phase_match": 16
+    },
+    "manifest_sha256": "f500ce2446b3b6d5a8bf9768366b9994f1988969d26384deb80377dc4dce75fb",
+    "protocol": "RV1126_F4_TRAINED_DECODER_CALIBRATION/1",
+    "sample_count": 16,
+    "status": "MATCHES_TRAINED_DECODER_INPUT_SEMANTICS",
+    "tensor": {
+      "dtype": "uint8",
+      "layout": [
+        "left_rgb_r",
+        "left_rgb_g",
+        "left_rgb_b",
+        "right_rgb_r",
+        "right_rgb_g",
+        "right_rgb_b",
+        "interpolation_phase_byte"
+      ],
+      "model_normalization": "all seven uint8 channels divided by 255 in the training-domain model; scaling is algebraically folded into first-layer weights for raw-domain ONNX",
+      "pair_semantics": "left/right are real 360p RGB authoritative frames separated by 60/source_fps frames; target is the real intermediate frame",
+      "phase_definition": "round(255 * intermediate_frame_offset / authoritative_interval_frames)",
+      "shape_hwc": [
+        360,
+        640,
+        7
+      ]
+    }
+  },
+  "comparisons": {
+    "10": {
+      "float_minus_hold": {
+        "psnr_db": 2.1662929999999996,
+        "ssim": 0.03157299999999996
+      },
+      "float_minus_linear": {
+        "psnr_db": 0.4320689999999985,
+        "ssim": 0.0066029999999999145
+      },
+      "reference_int8_minus_float": {
+        "psnr_db": 0.0011460000000020898,
+        "ssim": -7.00000000000145e-05
+      }
+    },
+    "15": {
+      "float_minus_hold": {
+        "psnr_db": 1.9368129999999972,
+        "ssim": 0.027505
+      },
+      "float_minus_linear": {
+        "psnr_db": 0.43403999999999954,
+        "ssim": 0.00730900000000001
+      },
+      "reference_int8_minus_float": {
+        "psnr_db": 0.0012539999999994222,
+        "ssim": -0.00011900000000009126
+      }
+    },
+    "5": {
+      "float_minus_hold": {
+        "psnr_db": 2.3309490000000004,
+        "ssim": 0.03889600000000004
+      },
+      "float_minus_linear": {
+        "psnr_db": 0.3307019999999987,
+        "ssim": 0.0046279999999999655
+      },
+      "reference_int8_minus_float": {
+        "psnr_db": 0.0005109999999994841,
+        "ssim": -9.499999999995623e-05
+      }
+    }
+  },
+  "export": {
+    "onnx": "rv1126_f4_trained_residual_raw_u8_semantics.onnx",
+    "onnx_ops": {
+      "Add": 4,
+      "Conv": 10,
+      "Relu": 9
+    },
+    "onnx_sha256": "cc42f9bfc26a7cfc56a4cc8058415d2cb8b91a99614b6e3db9991f3fe4ac24ec",
+    "raw_domain_fold_max_abs_error": 6.866455078125e-05
+  },
+  "github": {
+    "artifact": {
+      "github_digest_sha256": "0f262cad1a22e75bf426ae0598f1aeea8535d67c980cf5a9f8d2c8dbff23f1ea",
+      "id": 9428837119,
+      "independently_downloaded_sha256": "0f262cad1a22e75bf426ae0598f1aeea8535d67c980cf5a9f8d2c8dbff23f1ea",
+      "internal_sha256sums_entries": 38,
+      "internal_sha256sums_failures": 0,
+      "internal_sha256sums_verified": 38,
+      "name": "rv1126-f4-trained-decoder-quality-evidence",
+      "runner_absolute_paths_rebased_for_relocated_verification": true,
+      "size_bytes": 15869935
+    },
+    "branch": "rv1126-generative-video-f0-f1",
+    "head_sha": "5398573a1035d177dce9fcc712ee981a1678ffb4",
+    "job_id": 96618459668,
+    "repository": "FreesoSaiFared/binary-analysis-workflow",
+    "workflow_run_id": 32429623661
+  },
+  "preservation": {
+    "sealed_rk3588_v9_v10": "UNCHANGED",
+    "sealed_rv1126_f1_f2_f3": "UNCHANGED"
+  },
+  "proof_markers": [
+    "RV1126_F4_TRAINED_DECODER_QUALITY_PASS",
+    "RV1126_F4_TRAINED_QUALITY_CONTRACT_PASS",
+    "RV1126_F4_RKNN_CONSTRUCTOR_PASS",
+    "RV1126_F4_TRAINED_INT8_CONVERTER_PASS"
+  ],
+  "protocol": "RV1126_F4_TRAINED_DECODER_QUALITY_PROVEN/1",
+  "quality_results": {
+    "decoder_float_10_to_60": {
+      "authoritative_fps": 10,
+      "psnr_db": 24.268552,
+      "ssim": 0.752045
+    },
+    "decoder_float_15_to_60": {
+      "authoritative_fps": 15,
+      "psnr_db": 25.124605,
+      "ssim": 0.777858
+    },
+    "decoder_float_5_to_60": {
+      "authoritative_fps": 5,
+      "psnr_db": 22.729881,
+      "ssim": 0.706963
+    },
+    "decoder_ref_int8_10_to_60": {
+      "authoritative_fps": 10,
+      "psnr_db": 24.269698,
+      "ssim": 0.751975
+    },
+    "decoder_ref_int8_15_to_60": {
+      "authoritative_fps": 15,
+      "psnr_db": 25.125859,
+      "ssim": 0.777739
+    },
+    "decoder_ref_int8_5_to_60": {
+      "authoritative_fps": 5,
+      "psnr_db": 22.730392,
+      "ssim": 0.706868
+    },
+    "hold_10_to_60": {
+      "authoritative_fps": 10,
+      "psnr_db": 22.102259,
+      "ssim": 0.720472
+    },
+    "hold_15_to_60": {
+      "authoritative_fps": 15,
+      "psnr_db": 23.187792,
+      "ssim": 0.750353
+    },
+    "hold_5_to_60": {
+      "authoritative_fps": 5,
+      "psnr_db": 20.398932,
+      "ssim": 0.668067
+    },
+    "linear_10_to_60": {
+      "authoritative_fps": 10,
+      "psnr_db": 23.836483,
+      "ssim": 0.745442
+    },
+    "linear_15_to_60": {
+      "authoritative_fps": 15,
+      "psnr_db": 24.690565,
+      "ssim": 0.770549
+    },
+    "linear_5_to_60": {
+      "authoritative_fps": 5,
+      "psnr_db": 22.399179,
+      "ssim": 0.702335
+    },
+    "spatial_only_360p60": {
+      "authoritative_fps": 60,
+      "psnr_db": 27.110607,
+      "ssim": 0.840513
+    }
+  },
+  "reference_ptq": {
+    "activation_ranges": {
+      "b0_c1": {
+        "max": 0.9178853034973145,
+        "min": 0.0
+      },
+      "b0_c2": {
+        "max": 1.2169312238693237,
+        "min": -1.0369049310684204
+      },
+      "b0_out": {
+        "max": 1.808580756187439,
+        "min": 0.0
+      },
+      "b1_c1": {
+        "max": 0.955440878868103,
+        "min": 0.0
+      },
+      "b1_c2": {
+        "max": 0.45974427461624146,
+        "min": -0.5910690426826477
+      },
+      "b1_out": {
+        "max": 1.6987167596817017,
+        "min": 0.0
+      },
+      "b2_c1": {
+        "max": 1.4586081504821777,
+        "min": 0.0
+      },
+      "b2_c2": {
+        "max": 1.508079171180725,
+        "min": -2.6634068489074707
+      },
+      "b2_out": {
+        "max": 2.2458243370056152,
+        "min": 0.0
+      },
+      "b3_c1": {
+        "max": 1.4366347789764404,
+        "min": 0.0
+      },
+      "b3_c2": {
+        "max": 0.43467703461647034,
+        "min": -2.7243380546569824
+      },
+      "b3_out": {
+        "max": 2.208247661590576,
+        "min": 0.0
+      },
+      "input": {
+        "max": 1.0,
+        "min": 0.0
+      },
+      "output": {
+        "max": 0.4287506639957428,
+        "min": -0.4059908986091614
+      },
+      "stem": {
+        "max": 1.9104012250900269,
+        "min": 0.0
+      }
+    },
+    "activations": "affine uint8 per-tensor quantize/dequantize using min/max from the exact 16 real calibration samples",
+    "calibration_samples": 16,
+    "class": "fake INT8 reference simulation, not RKNN runtime",
+    "max_abs_psnr_delta_db_vs_float": 0.0012539999999994222,
+    "max_abs_ssim_delta_vs_float": 0.00011900000000009126,
+    "weights": "symmetric signed int8 per-output-channel quantize/dequantize"
+  },
+  "rknn_conversion": {
+    "build_ret": 0,
+    "calibration_layout": [
+      "left_rgb_r",
+      "left_rgb_g",
+      "left_rgb_b",
+      "right_rgb_r",
+      "right_rgb_g",
+      "right_rgb_b",
+      "interpolation_phase_byte"
+    ],
+    "calibration_manifest_sha256": "f500ce2446b3b6d5a8bf9768366b9994f1988969d26384deb80377dc4dce75fb",
+    "calibration_protocol": "RV1126_F4_TRAINED_DECODER_CALIBRATION/1",
+    "calibration_samples": 16,
+    "calibration_status": "MATCHES_TRAINED_DECODER_INPUT_SEMANTICS",
+    "dataset_sha256": "3d468a4aa45cf226a188e222f71c7319cf68e46cf994ccf392dc6781e264d226",
+    "do_quantization": true,
+    "exception": null,
+    "export_ret": 0,
+    "load_ret": 0,
+    "model_sha256": "cc42f9bfc26a7cfc56a4cc8058415d2cb8b91a99614b6e3db9991f3fe4ac24ec",
+    "protocol": "RV1126_F4_TRAINED_INT8_CONVERSION/1",
+    "quality_claim": false,
+    "rknn_exists": true,
+    "rknn_sha256": "f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae",
+    "rknn_size": 39074,
+    "runtime_image_quality_claim": false,
+    "rv1126_timing_claim": false,
+    "target": "rv1126"
+  },
+  "scope_limits": [
+    "Float and reference-PTQ quality are host reference-framework measurements, not RV1126 runtime measurements.",
+    "The reference fake-INT8 simulation is not claimed bit-equivalent to RKNN quantization.",
+    "RKNN converter success, if separately proven, does not establish RKNN runtime image quality.",
+    "No GitHub-host, simulator, QEMU or CPU timing is RV1126 silicon timing.",
+    "This first trained proof uses disjoint temporal splits of one verified open native-60 source and does not establish cross-video generalization.",
+    "The .rknn file is converter/compiler evidence only; no on-device RV1126 inference output was compared against reference output.",
+    "No F3 native-60 benchmark was rerun for this F4 acceptance; the verified native-60 source bytes were reused only as F4 training/evaluation data.",
+    "Normalized Daybreak and genuine native-60 remain separate benchmark classes."
+  ],
+  "semantics": {
+    "input_channels": [
+      "left_rgb_r",
+      "left_rgb_g",
+      "left_rgb_b",
+      "right_rgb_r",
+      "right_rgb_g",
+      "right_rgb_b",
+      "interpolation_phase_byte"
+    ],
+    "input_training_domain": "RGB and phase byte normalized by 255",
+    "output": "3-channel RGB residual in normalized training domain; final frame = clamp(linear(left,right,phase_byte/255) + residual, 0, 1)",
+    "phase_byte": "round(255 * intermediate_offset_frames / authoritative_interval_frames)",
+    "raw_onnx_domain": "input numeric 0..255; first-layer /255 and output-layer *255 scalings folded into Conv weights; output residual is in pixel-value units"
+  },
+  "source": {
+    "filename": "FFF-Sprueche_in_Hof_20191129_UHD-I_60_FPS.webm",
+    "native_fps": 60,
+    "sha256": "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a",
+    "source_frames": 2340
+  },
+  "splits": {
+    "calibration": {
+      "frames": [
+        1920,
+        2160
+      ],
+      "seconds": [
+        32.0,
+        36.0
+      ]
+    },
+    "evaluation": {
+      "frames": [
+        600,
+        780
+      ],
+      "ground_truth": "real native-60 intermediate frames; 1080p reference spatially scaled from original 4K only",
+      "seconds": [
+        10,
+        13
+      ]
+    },
+    "training": {
+      "frames": [
+        840,
+        1680
+      ],
+      "seconds": [
+        14.0,
+        28.0
+      ]
+    },
+    "validation": {
+      "frames": [
+        1680,
+        1800
+      ],
+      "seconds": [
+        28.0,
+        30.0
+      ]
+    }
+  },
+  "status": "PROVEN_WITH_SCOPE_LIMITS",
+  "training": {
+    "batch": 8,
+    "best_validation_mse": 0.0030663419964488034,
+    "conv_out_abs_weight_sum": 5.818342208862305,
+    "crop": 64,
+    "initial_validation_mse": 0.0037555518620138173,
+    "last_training_mse": 0.0004550681042019278,
+    "seed": 1126,
+    "steps": 800,
+    "trace": [
+      {
+        "step": 0,
+        "validation_mse": 0.0037555518620138173
+      },
+      {
+        "step": 50,
+        "training_mse": 0.0057050990872085094,
+        "validation_mse": 0.0037549892469238935
+      },
+      {
+        "step": 100,
+        "training_mse": 0.0014026396675035357,
+        "validation_mse": 0.0036739676093020535
+      },
+      {
+        "step": 150,
+        "training_mse": 0.0018960731104016304,
+        "validation_mse": 0.0036573374533569827
+      },
+      {
+        "step": 200,
+        "training_mse": 0.0035326967481523752,
+        "validation_mse": 0.003553777203099647
+      },
+      {
+        "step": 250,
+        "training_mse": 0.0046674106270074844,
+        "validation_mse": 0.0035962513960233386
+      },
+      {
+        "step": 300,
+        "training_mse": 0.0026207566261291504,
+        "validation_mse": 0.0035453344626148464
+      },
+      {
+        "step": 350,
+        "training_mse": 0.0021464938763529062,
+        "validation_mse": 0.0035023805188150923
+      },
+      {
+        "step": 400,
+        "training_mse": 0.0020831150468438864,
+        "validation_mse": 0.0036300328235180737
+      },
+      {
+        "step": 450,
+        "training_mse": 0.004768726881593466,
+        "validation_mse": 0.0038341722241360308
+      },
+      {
+        "step": 500,
+        "training_mse": 0.0017243887996301055,
+        "validation_mse": 0.003378338090745577
+      },
+      {
+        "step": 550,
+        "training_mse": 0.002055727643892169,
+        "validation_mse": 0.0034492106694112104
+      },
+      {
+        "step": 600,
+        "training_mse": 0.0008754127775318921,
+        "validation_mse": 0.0032191547925322084
+      },
+      {
+        "step": 650,
+        "training_mse": 0.0025327063631266356,
+        "validation_mse": 0.003168069298529493
+      },
+      {
+        "step": 700,
+        "training_mse": 0.0015768067678436637,
+        "validation_mse": 0.0032019240563082954
+      },
+      {
+        "step": 750,
+        "training_mse": 0.0019476749002933502,
+        "validation_mse": 0.0030663419964488034
+      },
+      {
+        "step": 800,
+        "training_mse": 0.0004550681042019278,
+        "validation_mse": 0.0031854486319389252
+      }
+    ]
+  }
+}
