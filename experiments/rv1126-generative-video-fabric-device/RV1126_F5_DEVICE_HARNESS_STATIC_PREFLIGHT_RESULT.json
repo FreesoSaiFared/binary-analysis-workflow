@@ -7,7 +7,7 @@
     "run_f5_rv1126_device_acceptance.py": "65195a250384be8fe6677ea0e2a5c95d5f295f9e447ab403a5c1a06caa9fab91"
   },
   "checks": {
-    "c_fsyntax_only_against_pinned_original_rknpu1_header": "failure",
+    "c_fsyntax_only_against_pinned_original_rknpu1_header": "success",
     "python_ast_and_contract_assertions": "success",
     "python_compile": "success"
   },
@@ -18,7 +18,12 @@
   },
   "diagnostic_log_tail": {
     "c": [
-      "UPSTREAM_MASTER=e0cb42b645707ca12518c43dcee7c4968cbe918f"
+      "OBSERVED_UPSTREAM_MASTER=e0cb42b645707ca12518c43dcee7c4968cbe918f",
+      "PINNED_RKNPU1=e0cb42b645707ca12518c43dcee7c4968cbe918f",
+      "    int64_t run_duration;                               /* real inference time (us) */",
+      "704ff9bd6cc05f3767d4eaa16341632df3bb7789dd05abe317c90d2c00eebc72  /tmp/rknpu1/rknn_runtime.h",
+      "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "RV1126_F5B_PINNED_RKNPU1_C_API_STATIC_PREFLIGHT_PASS"
     ],
     "contract": [
       "RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PASS",
@@ -30,8 +35,8 @@
     "ref": "refs/heads/rv1126-generative-video-f0-f1",
     "repository": "FreesoSaiFared/binary-analysis-workflow",
     "run_attempt": 1,
-    "run_id": 32452425258,
-    "tested_head_sha": "d01fd0b6382ad699dcc8c6e27d72c319b7fd71c0",
+    "run_id": 32473993520,
+    "tested_head_sha": "7a4435316e63233f9a960ff81aa037b185aafa75",
     "workflow": "RV1126 F5 physical-device harness preflight"
   },
   "preservation": {
@@ -39,9 +44,9 @@
     "rv1126_f1_f2_f3_f4": "UNCHANGED"
   },
   "protocol": "RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT/1",
-  "status": "STATIC_PREFLIGHT_FAIL_NO_HARDWARE_EXECUTION",
+  "status": "STATIC_PREFLIGHT_PASS_NO_HARDWARE_EXECUTION",
   "toolchain": {
-    "gcc": "unavailable",
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
     "python": "Python 3.12.3",
     "runner_arch": "X64",
     "runner_os": "Linux"
@@ -49,8 +54,8 @@
   "upstream_rknpu1": {
     "commit": "e0cb42b645707ca12518c43dcee7c4968cbe918f",
     "header_path": "rknn/include/rknn_runtime.h",
-    "header_sha256": "unavailable",
-    "perf_run_definition_checked": "int64_t run_duration; /* real inference time (us) */",
+    "header_sha256": "704ff9bd6cc05f3767d4eaa16341632df3bb7789dd05abe317c90d2c00eebc72",
+    "perf_run_definition_checked": "run_duration field semantically matched as real inference time (us)",
     "repository": "rockchip-linux/rknpu"
   }
 }
