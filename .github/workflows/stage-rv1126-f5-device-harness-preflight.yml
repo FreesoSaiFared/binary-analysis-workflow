@@ -1,0 +1,54 @@
+name: RV1126 F5 physical-device harness preflight
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - '.github/workflows/stage-rv1126-f5-device-harness-preflight.yml'
+      - 'experiments/rv1126-generative-video-fabric-device/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-preflight-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile harness without executing RKNN or hardware paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile experiments/rv1126-generative-video-fabric-device/run_f5_rv1126_device_acceptance.py
+
+      - name: Verify sealed-input and scope contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ast, json, pathlib
+          d = pathlib.Path('experiments/rv1126-generative-video-fabric-device')
+          contract = json.loads((d/'F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json').read_text())
+          assert contract['status'] == 'READY_FOR_PHYSICAL_ORIGINAL_RV1126_NOT_YET_PROVEN'
+          assert contract['sealed_inputs']['trained_rknn_sha256'] == 'f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae'
+          assert contract['sealed_inputs']['native60_source_sha256'] == 'af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a'
+          assert contract['runtime_gate']['simulator_is_forbidden'] is True
+          src = (d/'run_f5_rv1126_device_acceptance.py').read_text()
+          ast.parse(src)
+          required = [
+              'init_runtime(target="rv1126", device_id=device["adb_serial"])',
+              'data_format=["nhwc"]',
+              'F5A_REAL_RV1126_RUNTIME_QUALITY_PASS',
+              'NOT_PROVEN_BY_HOST_WALL_CLOCK',
+              'rv1126b',
+          ]
+          for needle in required:
+              assert needle in src, needle
+          assert 'EXPECTED_RKNN_SHA = "f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae"' in src
+          assert 'EXPECTED_SOURCE_SHA = "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a"' in src
+          print('RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PASS')
+          print('NO_RV1126_RUNTIME_OR_SILICON_EXECUTION_PERFORMED')
+          PY
