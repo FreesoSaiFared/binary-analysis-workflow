@@ -1,0 +1,71 @@
+{
+  "protocol": "RV1126_REAL_SILICON_FEASIBILITY_SYNTHESIS/1",
+  "status": "REAL_SILICON_EXTERNAL_EVIDENCE_SUPPORTS_THROUGHPUT_FEASIBILITY_NOT_PROJECT_SPECIFIC_F5_PROOF",
+  "project_claim_under_test": "An RK3588 controller can use multiple cheap original RV1126 nodes as a decoder/expansion fabric for sparse generative-video state, with RV1126 nodes handling interpolation/residual-correction-class neural work and surrounding video operations.",
+  "project_specific_evidence": {
+    "f1_f4": "software theory, graph conversion, calibration and trained-reference quality are proven in the project evidence chain",
+    "f5_static_preflight": "PASS against the pinned original RKNPU1 1.7.5 header",
+    "exact_f4_model_on_physical_rv1126": "NOT_TESTED",
+    "exact_f4_runtime_quality_on_physical_rv1126": "NOT_TESTED",
+    "exact_f4_silicon_timing": "NOT_TESTED"
+  },
+  "external_real_silicon_evidence": {
+    "source": {
+      "repository": "airockchip/rknn_model_zoo",
+      "revision_observed": "bad6c7334531becaf90a561988519b7bec34d0ab",
+      "table": "Model performance benchmark(FPS)",
+      "measurement_scope": "model inference at maximum NPU frequency; preprocessing and postprocessing excluded unless specified"
+    },
+    "original_rv1126_fps": {
+      "mobilenetv2_224_int8": 322.3,
+      "resnet50_v2_224_int8": 36.2,
+      "yolov5s_relu_640_int8": 29.2,
+      "yolov5n_640_int8": 53.2,
+      "yolov5s_640_int8": 20.0
+    },
+    "derived_single_inference_ms": {
+      "resnet50_v2_224_int8": 27.6243,
+      "yolov5s_relu_640_int8": 34.2466,
+      "yolov5n_640_int8": 18.7970,
+      "yolov5s_640_int8": 50.0
+    }
+  },
+  "fabric_throughput_requirement": {
+    "display_fps": 60,
+    "authoritative_fps_to_reconstructed_fps": {
+      "5": 55,
+      "10": 50,
+      "15": 45
+    },
+    "minimum_per_node_reconstructed_fps_for_four_frame_parallel_nodes": {
+      "5": 13.75,
+      "10": 12.5,
+      "15": 11.25
+    }
+  },
+  "conservative_published_silicon_comparison": {
+    "surrogate": "official original-RV1126 YOLOv5s 640x640 INT8 at 20 FPS",
+    "four_node_aggregate_fps": 80.0,
+    "aggregate_headroom_ratio_vs_required_reconstruction_rate": {
+      "5_to_60": 1.4545,
+      "10_to_60": 1.6,
+      "15_to_60": 1.7778
+    },
+    "interpretation": "The four-node fabric only needs 13.75 FPS/node in the hardest sparse-rate case. Rockchip publishes 20 FPS on original RV1126 for a mainstream 640x640 INT8 network, and substantially higher rates for several other networks. This is real-silicon evidence that the required per-node throughput regime is plausible. It does not prove that the exact F4 seven-channel residual graph achieves 13.75 FPS or better."
+  },
+  "latency_boundary": {
+    "throughput_feasibility": "SUPPORTED_IN_PRINCIPLE_BY_REAL_SILICON_EVIDENCE",
+    "single_frame_sub_16_67ms_latency": "NOT_SUPPORTED_BY_THE_CONSERVATIVE_SURROGATE_AND_NOT_REQUIRED_FOR_FRAME_PARALLEL_AGGREGATE_THROUGHPUT",
+    "interactive_end_to_end_latency": "NOT_PROVEN",
+    "reason": "Frame-parallel nodes increase aggregate throughput but do not shorten one model invocation; sparse interpolation also implies buffering/future-anchor considerations."
+  },
+  "feasibility_judgement": {
+    "current": "SUPPORTED_ENOUGH_TO_JUSTIFY_PHYSICAL_PROTOTYPE",
+    "not_yet": "PROJECT_SPECIFIC_HARDWARE_PROOF",
+    "next_discriminator": "Run F5A and F5B on one original RV1126. If the exact F4 model executes correctly and sustains at least 13.75 reconstructed FPS/node, the four-node compute-throughput premise is directly supported for the hardest 5->60 case. If below that threshold, test 8-node economics or reduce the model before claiming the architecture."
+  },
+  "preservation": {
+    "rv1126_f1_f2_f3_f4": "SEALED_UNCHANGED",
+    "rk3588_v9_v10": "SEALED_UNCHANGED"
+  }
+}
