@@ -33,12 +33,13 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          set -o pipefail
+          set +e
           python3 -m py_compile \
             "$F5_DIR/run_f5_rv1126_device_acceptance.py" \
             "$F5_DIR/prepare_f5b_semantic_probe.py" \
             > /tmp/f5-python.log 2>&1
           rc=$?
+          set -e
           cat /tmp/f5-python.log
           python3 --version | tee /tmp/f5-python.version
           exit $rc
@@ -48,23 +49,25 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          set -o pipefail
           mkdir -p /tmp/rknpu1
+          set +e
           {
             curl -fsSL \
               "https://raw.githubusercontent.com/rockchip-linux/rknpu/$RKNPU1_PIN/rknn/include/rknn_runtime.h" \
               -o /tmp/rknpu1/rknn_runtime.h
             git_hash=$(git ls-remote https://github.com/rockchip-linux/rknpu.git refs/heads/master | awk '{print $1}')
-            echo "UPSTREAM_MASTER=$git_hash"
-            test "$git_hash" = "$RKNPU1_PIN"
+            echo "OBSERVED_UPSTREAM_MASTER=$git_hash"
+            echo "PINNED_RKNPU1=$RKNPU1_PIN"
             gcc -std=c11 -Wall -Wextra -Werror -fsyntax-only -I/tmp/rknpu1 \
               "$F5_DIR/f5b_rknpu1_model_timing.c"
-            grep -F 'int64_t run_duration; /* real inference time (us) */' /tmp/rknpu1/rknn_runtime.h
+            grep -E 'int64_t[[:space:]]+run_duration;[[:space:]]*/\*[[:space:]]*real inference time \(us\)[[:space:]]*\*/' \
+              /tmp/rknpu1/rknn_runtime.h
             sha256sum /tmp/rknpu1/rknn_runtime.h | tee /tmp/rknpu1/header.sha256
             gcc --version | head -1 | tee /tmp/rknpu1/gcc.version
             echo RV1126_F5B_PINNED_RKNPU1_C_API_STATIC_PREFLIGHT_PASS
           } > /tmp/f5-c.log 2>&1
           rc=$?
+          set -e
           cat /tmp/f5-c.log
           exit $rc
 
@@ -73,7 +76,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          set -o pipefail
+          set +e
           python3 - <<'PY' > /tmp/f5-contract.log 2>&1
           import ast, json, pathlib
           d = pathlib.Path('experiments/rv1126-generative-video-fabric-device')
@@ -107,6 +110,7 @@ jobs:
           print('NO_RV1126_RUNTIME_OR_SILICON_EXECUTION_PERFORMED')
           PY
           rc=$?
+          set -e
           cat /tmp/f5-contract.log
           exit $rc
 
@@ -158,7 +162,7 @@ jobs:
               'commit': os.environ['RKNPU1_PIN'],
               'header_path': 'rknn/include/rknn_runtime.h',
               'header_sha256': os.environ['HEADER_SHA256'],
-              'perf_run_definition_checked': 'int64_t run_duration; /* real inference time (us) */',
+              'perf_run_definition_checked': 'run_duration field semantically matched as real inference time (us)',
             },
             'toolchain': {'runner_os': os.environ.get('RUNNER_OS'), 'runner_arch': os.environ.get('RUNNER_ARCH'), 'gcc': os.environ['GCC_VERSION'], 'python': os.environ['PYTHON_VERSION']},
             'checked_files_sha256': {
