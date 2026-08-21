@@ -1,0 +1,88 @@
+{
+  "protocol": "RV1126_F5_ON_DEVICE_ACCEPTANCE_CONTRACT/1",
+  "status": "READY_FOR_PHYSICAL_ORIGINAL_RV1126_NOT_YET_PROVEN",
+  "purpose": "Close the gap between F4 reference/converter proof and real original-RV1126 runtime behavior without treating host, simulator, QEMU, or converter timing as silicon timing.",
+  "sealed_inputs": {
+    "f4_acceptance_commit": "3baed799f4dfca8657c2f51221f665dbbf13b98d",
+    "f4_workflow_run_id": 32429623661,
+    "f4_job_id": 96618459668,
+    "f4_artifact_id": 9428837119,
+    "f4_artifact_sha256": "0f262cad1a22e75bf426ae0598f1aeea8535d67c980cf5a9f8d2c8dbff23f1ea",
+    "trained_rknn_sha256": "f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae",
+    "trained_rknn_size_bytes": 39074,
+    "trained_onnx_sha256": "cc42f9bfc26a7cfc56a4cc8058415d2cb8b91a99614b6e3db9991f3fe4ac24ec",
+    "native60_source_sha256": "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a",
+    "native60_source_frames": 2340
+  },
+  "device_identity_gate": {
+    "target": "rv1126",
+    "requires_real_adb_device": true,
+    "requires_proc_device_tree_compatible_to_contain": "rv1126",
+    "reject_if_compatible_contains": ["rv1126b"],
+    "collect": ["adb serial", "/proc/device-tree/compatible", "uname -a", "/proc/cpuinfo", "NPU/galcore driver evidence when available"]
+  },
+  "runtime_gate": {
+    "toolkit": "RKNN-Toolkit 1.7.5 / RKNPU1",
+    "load": "RKNN.load_rknn(exact sealed F4 .rknn)",
+    "init": "RKNN.init_runtime(target='rv1126', device_id=<selected adb serial>)",
+    "inference": "RKNN.inference(inputs=[NHWC uint8 tensor])",
+    "simulator_is_forbidden": true,
+    "reason": "Original RV1126 is an RKNPU1 target; this gate exists specifically to require a real target runtime."
+  },
+  "input_semantics": {
+    "shape_nhwc": [1, 360, 640, 7],
+    "dtype": "uint8",
+    "channels": ["left_rgb_r", "left_rgb_g", "left_rgb_b", "right_rgb_r", "right_rgb_g", "right_rgb_b", "interpolation_phase_byte"],
+    "phase_byte": "round(255 * intermediate_offset_frames / authoritative_interval_frames)",
+    "authoritative_rates_fps": [5, 10, 15],
+    "interval_frames_at_60fps": {"5": 12, "10": 6, "15": 4},
+    "decoder_output": "3-channel residual in raw pixel-value units; reconstructed RGB = clamp(linear(left,right,phase_byte/255) + residual, 0, 255)"
+  },
+  "quality_gate": {
+    "evaluation_frame_range": [600, 780],
+    "evaluation_frames": 180,
+    "ground_truth": "real native-60 intermediate frames; same F4 evaluation class",
+    "required_for_f5a_pass": [
+      "every reconstructed output frame comes from the real RV1126 runtime",
+      "180 output positions verified for each tested rate",
+      "on-device reconstruction PSNR exceeds simple linear PSNR at 5, 10 and 15 fps",
+      "on-device reconstruction SSIM exceeds simple linear SSIM at 5, 10 and 15 fps",
+      "same-input repeated-inference determinism check passes",
+      "runtime-minus-F4-float deltas are reported but not hidden behind a converter-success claim"
+    ],
+    "f4_float_reference": {
+      "5": {"psnr_db": 22.729881, "ssim": 0.706963},
+      "10": {"psnr_db": 24.268552, "ssim": 0.752045},
+      "15": {"psnr_db": 25.124605, "ssim": 0.777858}
+    },
+    "same_f4_linear_reference": {
+      "5": {"psnr_db": 22.399179, "ssim": 0.702335},
+      "10": {"psnr_db": 23.836483, "ssim": 0.745442},
+      "15": {"psnr_db": 24.690565, "ssim": 0.770549}
+    }
+  },
+  "timing_gate": {
+    "host_connected_python_call_wall_time": "DIAGNOSTIC_ONLY_NOT_PURE_SILICON_TIMING",
+    "rknn_eval_perf": "capture verbatim when available; only call it device-reported performance if the runtime confirms a real target",
+    "f5b_model_only_silicon_acceptance": "requires repeated real-device timing from Rockchip device-reported perf or an on-board RKNPU1 C API harness, with warmup and p50/p95/p99",
+    "full_pipeline_1080p60_acceptance": "NOT implied by model-only timing; external resize/warp/codec/queue/fabric costs remain separate",
+    "deadline_ms": 16.6666667
+  },
+  "required_machine_record_fields": [
+    "device identity evidence",
+    "exact model/source hashes",
+    "RKNN runtime init return",
+    "per-rate frame counts",
+    "per-rate PSNR and SSIM",
+    "per-rate delta vs linear and F4 float",
+    "determinism hashes",
+    "host-connected inference-call p50/p95/p99 with diagnostic-only label",
+    "device-reported perf evidence if available",
+    "silicon timing claim status",
+    "full-pipeline timing claim status"
+  ],
+  "preservation": {
+    "rk3588_v9_v10": "SEALED_DO_NOT_MUTATE",
+    "rv1126_f1_f2_f3_f4": "SEALED_DO_NOT_RECOMPUTE_FOR_F5"
+  }
+}
