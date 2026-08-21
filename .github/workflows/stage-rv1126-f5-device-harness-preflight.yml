@@ -28,37 +28,53 @@ jobs:
         with:
           ref: rv1126-generative-video-f0-f1
 
-      - name: Compile Python harnesses without executing RKNN or hardware paths
+      - name: Compile Python harnesses
+        id: python_check
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
           python3 -m py_compile \
             "$F5_DIR/run_f5_rv1126_device_acceptance.py" \
-            "$F5_DIR/prepare_f5b_semantic_probe.py"
+            "$F5_DIR/prepare_f5b_semantic_probe.py" \
+            > /tmp/f5-python.log 2>&1
+          rc=$?
+          cat /tmp/f5-python.log
+          python3 --version | tee /tmp/f5-python.version
+          exit $rc
 
       - name: Syntax-check F5B against pinned original RKNPU1 1.7.5 header
+        id: c_check
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
           mkdir -p /tmp/rknpu1
-          curl -fsSL \
-            "https://raw.githubusercontent.com/rockchip-linux/rknpu/$RKNPU1_PIN/rknn/include/rknn_runtime.h" \
-            -o /tmp/rknpu1/rknn_runtime.h
-          git_hash=$(git ls-remote https://github.com/rockchip-linux/rknpu.git refs/heads/master | awk '{print $1}')
-          test "$git_hash" = "$RKNPU1_PIN"
-          gcc -std=c11 -Wall -Wextra -Werror -fsyntax-only -I/tmp/rknpu1 \
-            "$F5_DIR/f5b_rknpu1_model_timing.c"
-          grep -F 'int64_t run_duration; /* real inference time (us) */' /tmp/rknpu1/rknn_runtime.h
-          sha256sum /tmp/rknpu1/rknn_runtime.h | tee /tmp/rknpu1/header.sha256
-          gcc --version | head -1 | tee /tmp/rknpu1/gcc.version
-          python3 --version | tee /tmp/rknpu1/python.version
-          echo RV1126_F5B_PINNED_RKNPU1_C_API_STATIC_PREFLIGHT_PASS
+          {
+            curl -fsSL \
+              "https://raw.githubusercontent.com/rockchip-linux/rknpu/$RKNPU1_PIN/rknn/include/rknn_runtime.h" \
+              -o /tmp/rknpu1/rknn_runtime.h
+            git_hash=$(git ls-remote https://github.com/rockchip-linux/rknpu.git refs/heads/master | awk '{print $1}')
+            echo "UPSTREAM_MASTER=$git_hash"
+            test "$git_hash" = "$RKNPU1_PIN"
+            gcc -std=c11 -Wall -Wextra -Werror -fsyntax-only -I/tmp/rknpu1 \
+              "$F5_DIR/f5b_rknpu1_model_timing.c"
+            grep -F 'int64_t run_duration; /* real inference time (us) */' /tmp/rknpu1/rknn_runtime.h
+            sha256sum /tmp/rknpu1/rknn_runtime.h | tee /tmp/rknpu1/header.sha256
+            gcc --version | head -1 | tee /tmp/rknpu1/gcc.version
+            echo RV1126_F5B_PINNED_RKNPU1_C_API_STATIC_PREFLIGHT_PASS
+          } > /tmp/f5-c.log 2>&1
+          rc=$?
+          cat /tmp/f5-c.log
+          exit $rc
 
       - name: Verify sealed-input and scope contracts
+        id: contract_check
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
-          python3 - <<'PY'
+          set -o pipefail
+          python3 - <<'PY' > /tmp/f5-contract.log 2>&1
           import ast, json, pathlib
           d = pathlib.Path('experiments/rv1126-generative-video-fabric-device')
           contract = json.loads((d/'F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json').read_text())
@@ -73,14 +89,13 @@ jobs:
           probe = (d/'prepare_f5b_semantic_probe.py').read_text()
           c = (d/'f5b_rknpu1_model_timing.c').read_text()
           ast.parse(py); ast.parse(probe)
-          required_py = [
+          for needle in [
               'init_runtime(target="rv1126", device_id=device["adb_serial"])',
               'data_format=["nhwc"]',
               'F5A_REAL_RV1126_RUNTIME_QUALITY_PASS',
               'NOT_PROVEN_BY_HOST_WALL_CLOCK',
               'rv1126b',
-          ]
-          for needle in required_py:
+          ]:
               assert needle in py, needle
           assert 'EXPECTED_RKNN_SHA = "f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae"' in py
           assert 'EXPECTED_SOURCE_SHA = "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a"' in py
@@ -91,14 +106,22 @@ jobs:
           print('RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PASS')
           print('NO_RV1126_RUNTIME_OR_SILICON_EXECUTION_PERFORMED')
           PY
+          rc=$?
+          cat /tmp/f5-contract.log
+          exit $rc
 
-      - name: Seal machine-readable static-preflight acceptance record
+      - name: Seal machine-readable preflight record regardless of outcome
+        if: always()
         shell: bash
+        env:
+          PYTHON_CHECK: ${{ steps.python_check.outcome }}
+          C_CHECK: ${{ steps.c_check.outcome }}
+          CONTRACT_CHECK: ${{ steps.contract_check.outcome }}
         run: |
           set -euo pipefail
-          export HEADER_SHA256=$(cut -d' ' -f1 /tmp/rknpu1/header.sha256)
-          export GCC_VERSION=$(cat /tmp/rknpu1/gcc.version)
-          export PYTHON_VERSION=$(cat /tmp/rknpu1/python.version)
+          export PYTHON_VERSION=$(cat /tmp/f5-python.version 2>/dev/null || echo unavailable)
+          export GCC_VERSION=$(cat /tmp/rknpu1/gcc.version 2>/dev/null || echo unavailable)
+          export HEADER_SHA256=$(cut -d' ' -f1 /tmp/rknpu1/header.sha256 2>/dev/null || echo unavailable)
           export HARNESS_SHA256=$(sha256sum "$F5_DIR/run_f5_rv1126_device_acceptance.py" | cut -d' ' -f1)
           export C_HARNESS_SHA256=$(sha256sum "$F5_DIR/f5b_rknpu1_model_timing.c" | cut -d' ' -f1)
           export PROBE_SHA256=$(sha256sum "$F5_DIR/prepare_f5b_semantic_probe.py" | cut -d' ' -f1)
@@ -107,9 +130,21 @@ jobs:
           python3 - <<'PY'
           import json, os, pathlib
           d = pathlib.Path(os.environ['F5_DIR'])
+          outcomes = {
+            'python_compile': os.environ['PYTHON_CHECK'],
+            'c_fsyntax_only_against_pinned_original_rknpu1_header': os.environ['C_CHECK'],
+            'python_ast_and_contract_assertions': os.environ['CONTRACT_CHECK'],
+          }
+          passed = all(v == 'success' for v in outcomes.values())
+          def tail(path):
+            try:
+              lines = pathlib.Path(path).read_text(errors='replace').splitlines()
+              return lines[-80:]
+            except FileNotFoundError:
+              return ['LOG_NOT_CREATED']
           rec = {
             'protocol': 'RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT/1',
-            'status': 'STATIC_PREFLIGHT_PASS_NO_HARDWARE_EXECUTION',
+            'status': 'STATIC_PREFLIGHT_PASS_NO_HARDWARE_EXECUTION' if passed else 'STATIC_PREFLIGHT_FAIL_NO_HARDWARE_EXECUTION',
             'github': {
               'repository': os.environ['GITHUB_REPOSITORY'],
               'workflow': os.environ['GITHUB_WORKFLOW'],
@@ -125,12 +160,7 @@ jobs:
               'header_sha256': os.environ['HEADER_SHA256'],
               'perf_run_definition_checked': 'int64_t run_duration; /* real inference time (us) */',
             },
-            'toolchain': {
-              'runner_os': os.environ.get('RUNNER_OS'),
-              'runner_arch': os.environ.get('RUNNER_ARCH'),
-              'gcc': os.environ['GCC_VERSION'],
-              'python': os.environ['PYTHON_VERSION'],
-            },
+            'toolchain': {'runner_os': os.environ.get('RUNNER_OS'), 'runner_arch': os.environ.get('RUNNER_ARCH'), 'gcc': os.environ['GCC_VERSION'], 'python': os.environ['PYTHON_VERSION']},
             'checked_files_sha256': {
               'run_f5_rv1126_device_acceptance.py': os.environ['HARNESS_SHA256'],
               'f5b_rknpu1_model_timing.c': os.environ['C_HARNESS_SHA256'],
@@ -138,28 +168,27 @@ jobs:
               'F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json': os.environ['CONTRACT_SHA256'],
               'F5_RKNPU1_DRIVER_PREREQUISITES.json': os.environ['DRIVER_SHA256'],
             },
-            'checks': {
-              'python_compile': 'PASS',
-              'python_ast_and_contract_assertions': 'PASS',
-              'c_fsyntax_only_against_pinned_original_rknpu1_header': 'PASS',
-              'sealed_f4_model_and_source_hash_contract': 'PASS',
-              'simulator_forbidden_contract': 'PASS',
-            },
-            'claims': {
-              'f5a_rknn_runtime_image_quality': 'NOT_TESTED',
-              'f5b_rv1126_silicon_timing': 'NOT_TESTED',
-              'full_pipeline_1080p60': 'NOT_TESTED',
-            },
-            'preservation': {
-              'rv1126_f1_f2_f3_f4': 'UNCHANGED',
-              'rk3588_v9_v10': 'UNCHANGED',
-            },
+            'checks': outcomes,
+            'diagnostic_log_tail': {'python': tail('/tmp/f5-python.log'), 'c': tail('/tmp/f5-c.log'), 'contract': tail('/tmp/f5-contract.log')},
+            'claims': {'f5a_rknn_runtime_image_quality': 'NOT_TESTED', 'f5b_rv1126_silicon_timing': 'NOT_TESTED', 'full_pipeline_1080p60': 'NOT_TESTED'},
+            'preservation': {'rv1126_f1_f2_f3_f4': 'UNCHANGED', 'rk3588_v9_v10': 'UNCHANGED'},
           }
-          (d/'RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PROVEN.json').write_text(json.dumps(rec, indent=2, sort_keys=True)+'\n')
+          (d/'RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_RESULT.json').write_text(json.dumps(rec, indent=2, sort_keys=True)+'\n')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "$F5_DIR/RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PROVEN.json"
-          git diff --cached --quiet && exit 0
-          git commit -m 'rv1126: seal F5 device harness static preflight [skip ci]'
+          git add "$F5_DIR/RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_RESULT.json"
+          git diff --cached --quiet || git commit -m 'rv1126: seal F5 device harness static preflight result [skip ci]'
           git push origin HEAD:rv1126-generative-video-f0-f1
+
+      - name: Fail job after result is sealed if any check failed
+        if: always()
+        shell: bash
+        env:
+          PYTHON_CHECK: ${{ steps.python_check.outcome }}
+          C_CHECK: ${{ steps.c_check.outcome }}
+          CONTRACT_CHECK: ${{ steps.contract_check.outcome }}
+        run: |
+          test "$PYTHON_CHECK" = success
+          test "$C_CHECK" = success
+          test "$CONTRACT_CHECK" = success
