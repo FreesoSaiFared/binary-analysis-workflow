@@ -49,7 +49,7 @@ jobs:
           sleep 1
           for fps in 5 10 15; do
             target/release/rvfabricd-sim \
-              --source-fps "$fps" --target-fps 60 --seconds 4 \
+              --source-fps "$fps" --target-fps 60 --seconds 4 --generation "$generation" \
               --playout-delay-ms 500 --timeout-ms 250 \
               --out "evidence/F6_RUNTIME_CLEAN_${fps}FPS.json" \
               >"evidence/fabric-clean-${fps}.log" 2>&1
@@ -68,7 +68,7 @@ jobs:
           target/release/rvworker-sim --port 19113 --npu-ms 20 --jitter-ms 15 >evidence/worker-19113-fault.log 2>&1 &
           sleep 1
           target/release/rvfabricd-sim \
-            --source-fps 5 --target-fps 60 --seconds 6 \
+            --source-fps 5 --target-fps 60 --seconds 6 --generation 4 \
             --playout-delay-ms 500 --timeout-ms 180 \
             --out evidence/F6_RUNTIME_FAULTED_5FPS.json \
             >evidence/fabric-faulted.log 2>&1
