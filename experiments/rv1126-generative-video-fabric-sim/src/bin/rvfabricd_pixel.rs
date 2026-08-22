@@ -134,11 +134,13 @@ fn handle_client(stream: TcpStream, workers: &[String], timeout: Duration) -> Re
     for interval in 0..req.frame_count - 1 {
         let addr = &workers[interval % workers.len()];
         let mut conn = connect(addr, timeout);
-        if let Ok((ref mut wr, ref mut ww)) = conn {
-            if let Err(e) = cache_pair(wr, ww, req.generation, interval as u64, req.width, req.height, frames[interval], frames[interval + 1]) {
-                failures.push(format!("interval={interval}:cache:{e}"));
-                conn = Err(e);
-            }
+        let cache_error = match conn.as_mut() {
+            Ok((wr, ww)) => cache_pair(wr, ww, req.generation, interval as u64, req.width, req.height, frames[interval], frames[interval + 1]).err(),
+            Err(e) => Some(e.clone()),
+        };
+        if let Some(e) = cache_error {
+            failures.push(format!("interval={interval}:cache:{e}"));
+            conn = Err(e);
         }
         for (offset, &phase_u8) in phases.iter().enumerate() {
             let pos = interval * step + offset + 1;
