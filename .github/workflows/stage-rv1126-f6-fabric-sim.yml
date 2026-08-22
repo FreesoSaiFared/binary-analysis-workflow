@@ -29,9 +29,12 @@ jobs:
           cargo --version | tee evidence/cargo.txt
           uname -a | tee evidence/uname.txt
 
-      - name: Compile and unit-test protocol/state machine
+      - name: Resolve once, then compile and test under locked dependencies
         run: |
           set -euxo pipefail
+          cargo generate-lockfile 2>&1 | tee evidence/cargo-lock-generation.log
+          cp Cargo.lock evidence/Cargo.lock
+          sha256sum Cargo.lock | tee evidence/Cargo.lock.sha256
           cargo test --locked 2>&1 | tee evidence/cargo-test.log
           cargo build --release --locked 2>&1 | tee evidence/cargo-build.log
 
