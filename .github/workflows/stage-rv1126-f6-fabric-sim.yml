@@ -1,0 +1,138 @@
+name: RV1126 F6 distributed fabric simulator
+
+on:
+  push:
+    branches: [rv1126-generative-video-f0-f1]
+    paths:
+      - '.github/workflows/stage-rv1126-f6-fabric-sim.yml'
+      - 'experiments/rv1126-generative-video-fabric-sim/Cargo.toml'
+      - 'experiments/rv1126-generative-video-fabric-sim/src/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f6-runtime-and-envelope:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: experiments/rv1126-generative-video-fabric-sim
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record environment
+        run: |
+          set -euxo pipefail
+          mkdir -p evidence
+          rustc --version | tee evidence/rustc.txt
+          cargo --version | tee evidence/cargo.txt
+          uname -a | tee evidence/uname.txt
+
+      - name: Compile and unit-test protocol/state machine
+        run: |
+          set -euxo pipefail
+          cargo test --locked 2>&1 | tee evidence/cargo-test.log
+          cargo build --release --locked 2>&1 | tee evidence/cargo-build.log
+
+      - name: Clean four-worker runtime at 5, 10 and 15 authoritative fps
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'jobs -p | xargs -r kill || true' EXIT
+          for p in 19110 19111 19112 19113; do
+            target/release/rvworker-sim --port "$p" --npu-ms 20 --rga-ms 2 --vpu-ms 1 >"evidence/worker-$p-clean.log" 2>&1 &
+          done
+          sleep 1
+          for fps in 5 10 15; do
+            target/release/rvfabricd-sim \
+              --source-fps "$fps" --target-fps 60 --seconds 4 \
+              --playout-delay-ms 500 --timeout-ms 250 \
+              --out "evidence/F6_RUNTIME_CLEAN_${fps}FPS.json" \
+              >"evidence/fabric-clean-${fps}.log" 2>&1
+          done
+
+      - name: Faulted four-worker runtime must degrade without presentation stalls
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkill -f 'target/release/rvworker-sim' || true
+          sleep 1
+          trap 'jobs -p | xargs -r kill || true' EXIT
+          target/release/rvworker-sim --port 19110 --npu-ms 20 --stall-every 17 --stall-ms 120 >evidence/worker-19110-fault.log 2>&1 &
+          target/release/rvworker-sim --port 19111 --npu-ms 20 --drop-every 29 >evidence/worker-19111-fault.log 2>&1 &
+          target/release/rvworker-sim --port 19112 --npu-ms 20 --throttle-after-jobs 20 --throttle-multiplier 2.5 >evidence/worker-19112-fault.log 2>&1 &
+          target/release/rvworker-sim --port 19113 --npu-ms 20 --jitter-ms 15 >evidence/worker-19113-fault.log 2>&1 &
+          sleep 1
+          target/release/rvfabricd-sim \
+            --source-fps 5 --target-fps 60 --seconds 6 \
+            --playout-delay-ms 500 --timeout-ms 180 \
+            --out evidence/F6_RUNTIME_FAULTED_5FPS.json \
+            >evidence/fabric-faulted.log 2>&1
+
+      - name: Generate interval-cached survival envelope
+        run: |
+          set -euxo pipefail
+          target/release/f6-envelope --out evidence/F6_SURVIVAL_ENVELOPE.json | tee evidence/envelope.log
+
+      - name: Mechanically assert F6 acceptance properties
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY' | tee evidence/F6_ASSERTIONS.log
+          import json, pathlib
+          e=pathlib.Path('evidence')
+          clean=[]
+          for fps in (5,10,15):
+              x=json.loads((e/f'F6_RUNTIME_CLEAN_{fps}FPS.json').read_text())
+              assert x['status']=='RUNTIME_COMPLETED'
+              assert x['stale_generation_probe']=='PASS'
+              assert x['presentation_success_rate']==1.0
+              assert x['linear_fallbacks']==0, (fps,x['linear_fallbacks'])
+              assert x['neural_deadline_success_rate']==1.0, (fps,x['neural_deadline_success_rate'])
+              clean.append({'source_fps':fps,'effective_reconstructed_fps':x['effective_reconstructed_fps'],'jobs':x['reconstructed_jobs']})
+          f=json.loads((e/'F6_RUNTIME_FAULTED_5FPS.json').read_text())
+          assert f['presentation_success_rate']==1.0
+          assert f['linear_fallbacks']>0
+          assert f['reconstructed_jobs']==330
+          env=json.loads((e/'F6_SURVIVAL_ENVELOPE.json').read_text())
+          assert len(env['cases'])==1296
+          assert len(env['frontiers'])==108
+          key=[x for x in env['frontiers'] if x['source_fps']==5 and x['nodes']==4 and x['link_mbps']==1000.0 and x['jitter_ms_max']==0.0][0]
+          assert key['max_tested_npu_ms_throughput_sustainable'] is not None
+          record={
+            'protocol':'RV1126_F6_SIM_ACCEPTANCE/1',
+            'status':'PASS',
+            'clean_runtime':clean,
+            'faulted_runtime':{
+              'jobs':f['reconstructed_jobs'],
+              'fallbacks':f['linear_fallbacks'],
+              'presentation_success_rate':f['presentation_success_rate'],
+              'neural_deadline_success_rate':f['neural_deadline_success_rate'],
+            },
+            'four_node_5fps_1gbe_zero_jitter_frontier':key,
+            'claims':{
+              'actual_distributed_protocol_executed_on_loopback':True,
+              'stateful_interval_cache_generation_guard_executed':True,
+              'graceful_fallback_under_worker_faults_executed':True,
+              'survival_envelope_is_software_model_only':True,
+              'rv1126_silicon_timing':'NOT_TESTED',
+              'rv1126_ddr_thermal_behavior':'NOT_TESTED',
+            }
+          }
+          (e/'RV1126_F6_SIM_ACCEPTANCE.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(record,sort_keys=True))
+          print('RV1126_F6_SIM_ACCEPTANCE_PASS')
+          PY
+
+      - name: Hash evidence
+        run: |
+          set -euxo pipefail
+          find evidence -type f -print0 | sort -z | xargs -0 sha256sum > evidence/SHA256SUMS
+          cat evidence/RV1126_F6_SIM_ACCEPTANCE.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f6-fabric-sim-evidence
+          path: experiments/rv1126-generative-video-fabric-sim/evidence/**
+          if-no-files-found: error
