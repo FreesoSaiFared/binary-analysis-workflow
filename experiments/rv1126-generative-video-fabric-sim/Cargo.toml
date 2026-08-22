@@ -1,0 +1,24 @@
+[package]
+name = "rvfabric-sim"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[bin]]
+name = "rvworker-sim"
+path = "src/bin/rvworker_sim.rs"
+
+[[bin]]
+name = "rvfabricd-sim"
+path = "src/bin/rvfabricd_sim.rs"
+
+[[bin]]
+name = "rvfabricd-pixel"
+path = "src/bin/rvfabricd_pixel.rs"
+
+[[bin]]
+name = "f6-envelope"
+path = "src/bin/f6_envelope.rs"

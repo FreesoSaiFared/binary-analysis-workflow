@@ -1,0 +1,158 @@
+name: RV1126 F3 Daybreak quality matrix
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - '.github/workflows/stage-rv1126-f3-daybreak-quality.yml'
+      - 'experiments/rv1126-generative-video-fabric/run_f3_quality_baseline.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  daybreak-quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install distribution FFmpeg
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Record benchmark environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/rv1126-f3"
+          mkdir -p "$O/evidence" "$O/work"
+          cat /etc/os-release > "$O/evidence/os-release.txt"
+          uname -a > "$O/evidence/uname.txt"
+          python3 --version > "$O/evidence/python-version.txt" 2>&1
+          ffmpeg -version > "$O/evidence/ffmpeg-version.txt" 2>&1
+          ffprobe -version > "$O/evidence/ffprobe-version.txt" 2>&1
+          dpkg-query -W -f='${Package}=${Version}\n' ffmpeg > "$O/evidence/ffmpeg-package.txt"
+          sha256sum experiments/rv1126-generative-video-fabric/run_f3_quality_baseline.py > "$O/evidence/harness-sha256.txt"
+
+      - name: Fetch and verify Daybreak ground truth
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/rv1126-f3"
+          SRC="$O/work/Daybreak_Timelapse_1080p60fps.webm"
+          URL='https://commons.wikimedia.org/wiki/Special:Redirect/file/Daybreak_Timelapse_1080p60fps.webm'
+          printf '%s\n' "$URL" > "$O/evidence/source-url.txt"
+          curl -fL --retry 5 --retry-delay 2 -o "$SRC" "$URL"
+          test "$(stat -c%s "$SRC")" -eq 38208095
+          echo '055d298a675ba89a0f88f6d95fd5f0d075b64613  '"$SRC" | sha1sum -c -
+          stat -c 'SOURCE_SIZE_BYTES=%s' "$SRC" | tee "$O/evidence/source-size.txt"
+          sha1sum "$SRC" | tee "$O/evidence/source-sha1.txt"
+          sha256sum "$SRC" | tee "$O/evidence/source-sha256.txt"
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,avg_frame_rate,r_frame_rate,nb_frames,duration -show_entries format=duration,size,format_name -of json "$SRC" | tee "$O/evidence/source-ffprobe.json"
+          ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of json "$SRC" | tee "$O/evidence/source-frame-count.json"
+
+      - name: Execute fixed 180-frame seven-case quality matrix
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/rv1126-f3"
+          SRC="$O/work/Daybreak_Timelapse_1080p60fps.webm"
+          python3 experiments/rv1126-generative-video-fabric/run_f3_quality_baseline.py \
+            --source "$SRC" --out "$O/work/results" --start 20 --duration 3 \
+            2>&1 | tee "$O/evidence/benchmark-command.log"
+          grep -F 'RV1126_F3_GROUND_TRUTH_BASELINE_PASS cases=7' "$O/evidence/benchmark-command.log"
+          cp "$O/work/results/F3_QUALITY_BASELINE.json" "$O/evidence/"
+          cp "$O/work/results/F3_QUALITY_BASELINE.csv" "$O/evidence/"
+          cat "$O/evidence/F3_QUALITY_BASELINE.json"
+
+      - name: Verify dimensions and exact decoded frame counts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/rv1126-f3"
+          python3 - <<'PY' "$O/work/results" "$O/evidence/frame-count-verification.json"
+          import json, pathlib, subprocess, sys
+          root=pathlib.Path(sys.argv[1]); out=pathlib.Path(sys.argv[2])
+          expected=[
+            'reference_1080p60.mkv',
+            'spatial_360p60_to_1080p60.mkv',
+            'hold_360p5_to_1080p60.mkv','linear_360p5_to_1080p60.mkv',
+            'hold_360p10_to_1080p60.mkv','linear_360p10_to_1080p60.mkv',
+            'hold_360p15_to_1080p60.mkv','linear_360p15_to_1080p60.mkv'
+          ]
+          rows=[]
+          for name in expected:
+              p=root/name
+              cp=subprocess.run(['ffprobe','-v','error','-count_frames','-select_streams','v:0',
+                                 '-show_entries','stream=width,height,avg_frame_rate,nb_read_frames',
+                                 '-of','json',str(p)],check=True,text=True,capture_output=True)
+              s=json.loads(cp.stdout)['streams'][0]
+              row={'file':name,'width':int(s['width']),'height':int(s['height']),
+                   'avg_frame_rate':s['avg_frame_rate'],'decoded_frames':int(s['nb_read_frames'])}
+              assert row['width']==1920 and row['height']==1080, row
+              assert row['decoded_frames']==180, row
+              rows.append(row)
+          payload={'protocol':'RV1126_F3_FRAME_COUNT_VERIFICATION/1','all_expected_files':True,
+                   'expected_decoded_frames_each':180,'results':rows}
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(payload,sort_keys=True))
+          print('RV1126_F3_FRAME_COUNT_PASS files=8 frames_each=180')
+          PY
+
+      - name: Analyze temporal baseline competitiveness
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/rv1126-f3"
+          python3 - <<'PY' "$O/evidence/F3_QUALITY_BASELINE.json" "$O/evidence/F3_QUALITY_ANALYSIS.json"
+          import json, pathlib, sys
+          src=json.load(open(sys.argv[1])); rows=src['results']; by={r['case']:r for r in rows}
+          assert len(rows)==7
+          expected={'spatial_only_360p60','hold_5_to_60','linear_5_to_60','hold_10_to_60','linear_10_to_60','hold_15_to_60','linear_15_to_60'}
+          assert set(by)==expected, set(by)
+          spatial=by['spatial_only_360p60']
+          comparisons=[]
+          for fps in (5,10,15):
+              h=by[f'hold_{fps}_to_60']; l=by[f'linear_{fps}_to_60']
+              comparisons.append({
+                'authoritative_fps':fps,
+                'linear_minus_hold_psnr_db':l['psnr_db']-h['psnr_db'],
+                'linear_minus_hold_ssim':l['ssim']-h['ssim'],
+                'hold_gap_to_spatial_psnr_db':h['psnr_db']-spatial['psnr_db'],
+                'hold_gap_to_spatial_ssim':h['ssim']-spatial['ssim'],
+                'linear_gap_to_spatial_psnr_db':l['psnr_db']-spatial['psnr_db'],
+                'linear_gap_to_spatial_ssim':l['ssim']-spatial['ssim']
+              })
+          ranking_psnr=[r['case'] for r in sorted(rows,key=lambda r:r['psnr_db'],reverse=True)]
+          ranking_ssim=[r['case'] for r in sorted(rows,key=lambda r:r['ssim'],reverse=True)]
+          payload={
+            'protocol':'RV1126_F3_QUALITY_ANALYSIS/1',
+            'scope':'metric comparison of deterministic x86/FFmpeg baselines only; no neural quality and no RV1126 timing claim',
+            'spatial_only_reference_baseline':{'psnr_db':spatial['psnr_db'],'ssim':spatial['ssim']},
+            'ranking_by_psnr':ranking_psnr,
+            'ranking_by_ssim':ranking_ssim,
+            'linear_vs_hold_and_spatial_deltas':comparisons,
+            'metric_competitive_definition':'relative ranking and measured deltas only; no subjective perceptual threshold is inferred'
+          }
+          pathlib.Path(sys.argv[2]).write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(payload,sort_keys=True))
+          PY
+
+      - name: Hash compact benchmark evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/rv1126-f3"
+          find "$O/evidence" -type f -print0 | sort -z | xargs -0 sha256sum | tee "$O/evidence/SHA256SUMS"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f3-daybreak-quality-evidence
+          path: ${{ runner.temp }}/rv1126-f3/evidence/**
+          if-no-files-found: error

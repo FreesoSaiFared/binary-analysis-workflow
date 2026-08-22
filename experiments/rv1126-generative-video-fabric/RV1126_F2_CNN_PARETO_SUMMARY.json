@@ -1,0 +1,23 @@
+{
+  "status": "SOFTWARE_COMPUTE_DESIGN_SPACE_ONLY",
+  "cases": 108,
+  "derates": {"operator_efficiency":0.85,"quantization_efficiency":0.90,"thermal_factor":0.95},
+  "one_npu_highest_compute_candidate_by_resolution": {
+    "20pct": {
+      "640x360": {"channels":8,"blocks":8,"GOP":4.579,"peak_int8_activation_MB":1.84},
+      "960x540": {"channels":8,"blocks":3,"GOP":4.330,"peak_int8_activation_MB":4.15},
+      "1280x720": {"channels":4,"blocks":6,"GOP":3.849,"peak_int8_activation_MB":3.69}
+    },
+    "40pct": {
+      "640x360": {"channels":16,"blocks":4,"GOP":9.157,"peak_int8_activation_MB":3.69},
+      "960x540": {"channels":12,"blocks":3,"GOP":9.182,"peak_int8_activation_MB":6.22},
+      "1280x720": {"channels":8,"blocks":3,"GOP":7.697,"peak_int8_activation_MB":7.37}
+    },
+    "70pct": {
+      "640x360": {"channels":24,"blocks":3,"GOP":15.328,"peak_int8_activation_MB":5.53},
+      "960x540": {"channels":16,"blocks":3,"GOP":15.826,"peak_int8_activation_MB":8.29},
+      "1280x720": {"channels":12,"blocks":3,"GOP":16.323,"peak_int8_activation_MB":11.06}
+    }
+  },
+  "interpretation": "At low delivered utilization, network width/depth must be radically smaller than stock interpolation/SR models. The 16-channel 4-block 360p graph is intentionally the 40%-utilization boundary candidate; an 8-channel design provides a safer low-utilization fallback for later quality tests. These are ideal compute-window classifications before real RKNN timing, memory bandwidth and transfer overhead."
+}

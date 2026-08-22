@@ -1,0 +1,28 @@
+{
+  "status": "SOFTWARE_WORKLOAD_CROSSOVER_NOT_RKNN_CONVERTED_NOT_SILICON_TIMING",
+  "candidate_gop": 9.1570176,
+  "candidate": "640x360 fixed-shape 16-channel 4-residual-block Conv/ReLU/Add correction CNN",
+  "four_node_1gbe_zero_deadline_miss_threshold": {
+    "effective_utilization": 0.415,
+    "p95_latency_ms": 16.651,
+    "steady_state_fps": 60.0,
+    "source_5fps_link_load": 0.073824,
+    "source_10fps_link_load": 0.090048,
+    "source_15fps_link_load": 0.106272
+  },
+  "median_40pct_case": {
+    "p95_latency_ms": 17.22,
+    "meets_16_667ms": false,
+    "observation": "adding frame-parallel nodes does not reduce one-frame latency"
+  },
+  "70pct_case": {
+    "p95_latency_ms": 10.47,
+    "meets_16_667ms": true
+  },
+  "100mbit_source15": {
+    "link_load": 1.06272,
+    "bottleneck": "link",
+    "observation": "fails regardless of 4/8/16 frame-parallel node count"
+  },
+  "interpretation": "Under the current byte and efficiency assumptions, the purpose-built 9.157-GOP candidate sits directly on the live-display crossover. The model requires about 41.5% effective utilization at 1GbE for zero modeled 16.667-ms misses. This is a simulation target for F2 conversion/timing validation, not a claim that RV1126 attains 41.5%."
+}

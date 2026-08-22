@@ -1,0 +1,31 @@
+{
+  "protocol": "RV1126_F5_RKNPU1_DRIVER_PREREQUISITES/1",
+  "status": "PHYSICAL_RUNTIME_PREREQUISITE_NOT_YET_OBSERVED_ON_USER_HARDWARE",
+  "source": {
+    "repository": "rockchip-linux/rknpu",
+    "branch": "master",
+    "scope": "original RKNPU1 stack for RV1109/RV1126"
+  },
+  "platform": {
+    "target": "original RV1126",
+    "userspace_driver_family": "linux-armhf-puma",
+    "kernel_module": "galcore_puma.ko"
+  },
+  "full_vs_mini": {
+    "full_linux_armhf_puma": "supports RKNN Toolkit online debugging / host-connected runtime",
+    "mini_linux_armhf_puma_mini": "supports precompiled RKNN models only and does not support Toolkit online debugging",
+    "classification_rule": "A mini-driver incompatibility or non-precompiled-model rejection is an environment failure, not trained-decoder image-quality failure."
+  },
+  "f5a_requirement": "Use a compatible full PUMA runtime/driver stack for host-connected RKNN-Toolkit 1.7.5 init_runtime(target='rv1126').",
+  "f5b_requirement": "The on-board C harness must link against the original RKNPU1 runtime matching the installed RV1126 driver. Record RKNN_QUERY_SDK_VERSION before timing.",
+  "timing_evidence": {
+    "api": "RKNN_QUERY_PERF_RUN",
+    "structure": "rknn_perf_run.run_duration",
+    "rockchip_definition": "real inference time (us)",
+    "claim_scope": "model-only real-device inference timing; never full 1080p60 pipeline timing"
+  },
+  "preservation": {
+    "sealed_f1_f2_f3_f4": "UNCHANGED",
+    "rk3588_v9_v10": "UNCHANGED"
+  }
+}

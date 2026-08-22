@@ -1,0 +1,198 @@
+name: RV1126 F5 physical-device harness preflight
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - '.github/workflows/stage-rv1126-f5-device-harness-preflight.yml'
+      - 'experiments/rv1126-generative-video-fabric-device/F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json'
+      - 'experiments/rv1126-generative-video-fabric-device/F5_RKNPU1_DRIVER_PREREQUISITES.json'
+      - 'experiments/rv1126-generative-video-fabric-device/run_f5_rv1126_device_acceptance.py'
+      - 'experiments/rv1126-generative-video-fabric-device/f5b_rknpu1_model_timing.c'
+      - 'experiments/rv1126-generative-video-fabric-device/prepare_f5b_semantic_probe.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RKNPU1_PIN: e0cb42b645707ca12518c43dcee7c4968cbe918f
+  F5_DIR: experiments/rv1126-generative-video-fabric-device
+
+jobs:
+  static-preflight-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rv1126-generative-video-f0-f1
+
+      - name: Compile Python harnesses
+        id: python_check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          python3 -m py_compile \
+            "$F5_DIR/run_f5_rv1126_device_acceptance.py" \
+            "$F5_DIR/prepare_f5b_semantic_probe.py" \
+            > /tmp/f5-python.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/f5-python.log
+          python3 --version | tee /tmp/f5-python.version
+          exit $rc
+
+      - name: Syntax-check F5B against pinned original RKNPU1 1.7.5 header
+        id: c_check
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p /tmp/rknpu1
+          set +e
+          {
+            curl -fsSL \
+              "https://raw.githubusercontent.com/rockchip-linux/rknpu/$RKNPU1_PIN/rknn/include/rknn_runtime.h" \
+              -o /tmp/rknpu1/rknn_runtime.h
+            git_hash=$(git ls-remote https://github.com/rockchip-linux/rknpu.git refs/heads/master | awk '{print $1}')
+            echo "OBSERVED_UPSTREAM_MASTER=$git_hash"
+            echo "PINNED_RKNPU1=$RKNPU1_PIN"
+            gcc -std=c11 -Wall -Wextra -Werror -fsyntax-only -I/tmp/rknpu1 \
+              "$F5_DIR/f5b_rknpu1_model_timing.c"
+            grep -E 'int64_t[[:space:]]+run_duration;[[:space:]]*/\*[[:space:]]*real inference time \(us\)[[:space:]]*\*/' \
+              /tmp/rknpu1/rknn_runtime.h
+            sha256sum /tmp/rknpu1/rknn_runtime.h | tee /tmp/rknpu1/header.sha256
+            gcc --version | head -1 | tee /tmp/rknpu1/gcc.version
+            echo RV1126_F5B_PINNED_RKNPU1_C_API_STATIC_PREFLIGHT_PASS
+          } > /tmp/f5-c.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/f5-c.log
+          exit $rc
+
+      - name: Verify sealed-input and scope contracts
+        id: contract_check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          python3 - <<'PY' > /tmp/f5-contract.log 2>&1
+          import ast, json, pathlib
+          d = pathlib.Path('experiments/rv1126-generative-video-fabric-device')
+          contract = json.loads((d/'F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json').read_text())
+          driver = json.loads((d/'F5_RKNPU1_DRIVER_PREREQUISITES.json').read_text())
+          assert contract['status'] == 'READY_FOR_PHYSICAL_ORIGINAL_RV1126_NOT_YET_PROVEN'
+          assert contract['sealed_inputs']['trained_rknn_sha256'] == 'f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae'
+          assert contract['sealed_inputs']['native60_source_sha256'] == 'af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a'
+          assert contract['runtime_gate']['simulator_is_forbidden'] is True
+          assert driver['platform']['userspace_driver_family'] == 'linux-armhf-puma'
+          assert driver['timing_evidence']['api'] == 'RKNN_QUERY_PERF_RUN'
+          py = (d/'run_f5_rv1126_device_acceptance.py').read_text()
+          probe = (d/'prepare_f5b_semantic_probe.py').read_text()
+          c = (d/'f5b_rknpu1_model_timing.c').read_text()
+          ast.parse(py); ast.parse(probe)
+          for needle in [
+              'init_runtime(target="rv1126", device_id=device["adb_serial"])',
+              'data_format=["nhwc"]',
+              'F5A_REAL_RV1126_RUNTIME_QUALITY_PASS',
+              'NOT_PROVEN_BY_HOST_WALL_CLOCK',
+              'rv1126b',
+          ]:
+              assert needle in py, needle
+          assert 'EXPECTED_RKNN_SHA = "f0dc43ff2c836cbab05d2b836538b1bb4912c404354d19425a1b837d4fff4dae"' in py
+          assert 'EXPECTED_SOURCE_SHA = "af7324ac7edb9dfe6a8ed95824d5a645156f6e875286181934f20a9bad23392a"' in py
+          assert 'PHASE_BYTE = 128' in probe
+          assert 'RKNN_QUERY_PERF_RUN' in c
+          assert 'HOST_CONNECTED_PYTHON_ADB_CALL_WALL_TIME_DIAGNOSTIC_ONLY' in py
+          assert 'full_pipeline_1080p60' in c
+          print('RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PASS')
+          print('NO_RV1126_RUNTIME_OR_SILICON_EXECUTION_PERFORMED')
+          PY
+          rc=$?
+          set -e
+          cat /tmp/f5-contract.log
+          exit $rc
+
+      - name: Seal machine-readable preflight record regardless of outcome
+        if: always()
+        shell: bash
+        env:
+          PYTHON_CHECK: ${{ steps.python_check.outcome }}
+          C_CHECK: ${{ steps.c_check.outcome }}
+          CONTRACT_CHECK: ${{ steps.contract_check.outcome }}
+        run: |
+          set -euo pipefail
+          export PYTHON_VERSION=$(cat /tmp/f5-python.version 2>/dev/null || echo unavailable)
+          export GCC_VERSION=$(cat /tmp/rknpu1/gcc.version 2>/dev/null || echo unavailable)
+          export HEADER_SHA256=$(cut -d' ' -f1 /tmp/rknpu1/header.sha256 2>/dev/null || echo unavailable)
+          export HARNESS_SHA256=$(sha256sum "$F5_DIR/run_f5_rv1126_device_acceptance.py" | cut -d' ' -f1)
+          export C_HARNESS_SHA256=$(sha256sum "$F5_DIR/f5b_rknpu1_model_timing.c" | cut -d' ' -f1)
+          export PROBE_SHA256=$(sha256sum "$F5_DIR/prepare_f5b_semantic_probe.py" | cut -d' ' -f1)
+          export CONTRACT_SHA256=$(sha256sum "$F5_DIR/F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json" | cut -d' ' -f1)
+          export DRIVER_SHA256=$(sha256sum "$F5_DIR/F5_RKNPU1_DRIVER_PREREQUISITES.json" | cut -d' ' -f1)
+          python3 - <<'PY'
+          import json, os, pathlib
+          d = pathlib.Path(os.environ['F5_DIR'])
+          outcomes = {
+            'python_compile': os.environ['PYTHON_CHECK'],
+            'c_fsyntax_only_against_pinned_original_rknpu1_header': os.environ['C_CHECK'],
+            'python_ast_and_contract_assertions': os.environ['CONTRACT_CHECK'],
+          }
+          passed = all(v == 'success' for v in outcomes.values())
+          def tail(path):
+            try:
+              lines = pathlib.Path(path).read_text(errors='replace').splitlines()
+              return lines[-80:]
+            except FileNotFoundError:
+              return ['LOG_NOT_CREATED']
+          rec = {
+            'protocol': 'RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT/1',
+            'status': 'STATIC_PREFLIGHT_PASS_NO_HARDWARE_EXECUTION' if passed else 'STATIC_PREFLIGHT_FAIL_NO_HARDWARE_EXECUTION',
+            'github': {
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'workflow': os.environ['GITHUB_WORKFLOW'],
+              'run_id': int(os.environ['GITHUB_RUN_ID']),
+              'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'tested_head_sha': os.environ['GITHUB_SHA'],
+              'ref': os.environ['GITHUB_REF'],
+            },
+            'upstream_rknpu1': {
+              'repository': 'rockchip-linux/rknpu',
+              'commit': os.environ['RKNPU1_PIN'],
+              'header_path': 'rknn/include/rknn_runtime.h',
+              'header_sha256': os.environ['HEADER_SHA256'],
+              'perf_run_definition_checked': 'run_duration field semantically matched as real inference time (us)',
+            },
+            'toolchain': {'runner_os': os.environ.get('RUNNER_OS'), 'runner_arch': os.environ.get('RUNNER_ARCH'), 'gcc': os.environ['GCC_VERSION'], 'python': os.environ['PYTHON_VERSION']},
+            'checked_files_sha256': {
+              'run_f5_rv1126_device_acceptance.py': os.environ['HARNESS_SHA256'],
+              'f5b_rknpu1_model_timing.c': os.environ['C_HARNESS_SHA256'],
+              'prepare_f5b_semantic_probe.py': os.environ['PROBE_SHA256'],
+              'F5_RV1126_ON_DEVICE_ACCEPTANCE_CONTRACT.json': os.environ['CONTRACT_SHA256'],
+              'F5_RKNPU1_DRIVER_PREREQUISITES.json': os.environ['DRIVER_SHA256'],
+            },
+            'checks': outcomes,
+            'diagnostic_log_tail': {'python': tail('/tmp/f5-python.log'), 'c': tail('/tmp/f5-c.log'), 'contract': tail('/tmp/f5-contract.log')},
+            'claims': {'f5a_rknn_runtime_image_quality': 'NOT_TESTED', 'f5b_rv1126_silicon_timing': 'NOT_TESTED', 'full_pipeline_1080p60': 'NOT_TESTED'},
+            'preservation': {'rv1126_f1_f2_f3_f4': 'UNCHANGED', 'rk3588_v9_v10': 'UNCHANGED'},
+          }
+          (d/'RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_RESULT.json').write_text(json.dumps(rec, indent=2, sort_keys=True)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$F5_DIR/RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_RESULT.json"
+          git diff --cached --quiet || git commit -m 'rv1126: seal F5 device harness static preflight result [skip ci]'
+          git push origin HEAD:rv1126-generative-video-f0-f1
+
+      - name: Fail job after result is sealed if any check failed
+        if: always()
+        shell: bash
+        env:
+          PYTHON_CHECK: ${{ steps.python_check.outcome }}
+          C_CHECK: ${{ steps.c_check.outcome }}
+          CONTRACT_CHECK: ${{ steps.contract_check.outcome }}
+        run: |
+          test "$PYTHON_CHECK" = success
+          test "$C_CHECK" = success
+          test "$CONTRACT_CHECK" = success

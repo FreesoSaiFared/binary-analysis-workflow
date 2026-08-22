@@ -1,0 +1,14 @@
+{
+  "status": "STARTED_NOT_PROVEN",
+  "target": "original RV1126 legacy RKNN-Toolkit/RKNPU",
+  "candidate_graph": {
+    "shape": "fixed",
+    "quantization": "INT8 candidate",
+    "allowed_until_converter_proof": ["Conv","simple activation","Add","Concat"],
+    "outside_npu_preferred": ["resize/scale","pixel warp/reprojection","codec"],
+    "forbidden_as_dependency_until_proven": ["GridSample","attention","transformer","dynamic shape","arbitrary custom op"]
+  },
+  "audit_classes": ["NPU native","CPU fallback","rewrite possible","precompute upstream","replace with deterministic hardware","fatal"],
+  "negative_controls": ["Resize in graph","GridSample/warp-like op in graph"],
+  "next_success_condition": "legacy RKNN converter targeting rv1126 accepts graph with no hidden CPU fallback; exact layer audit and GOP count recorded"
+}

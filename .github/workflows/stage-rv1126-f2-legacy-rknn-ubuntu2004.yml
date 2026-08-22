@@ -1,0 +1,147 @@
+name: Clean-room RV1126 RKNN F2 on Ubuntu 20.04
+
+on:
+  push:
+    branches:
+      - rv1126-generative-video-f0-f1
+    paths:
+      - '.github/workflows/stage-rv1126-f2-legacy-rknn-ubuntu2004.yml'
+      - 'experiments/rv1126-generative-video-fabric/build_f2_onnx.py'
+      - 'experiments/rv1126-generative-video-fabric/run_f2_legacy_conversion.py'
+      - 'experiments/rv1126-generative-video-fabric/run_f2_int8_conversion.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu2004-cleanroom:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+    steps:
+      - name: Bootstrap Ubuntu 20.04 toolchain
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl unzip git build-essential python3 python3-dev python3-pip libgl1 libglib2.0-0
+          python3 --version
+          python3 -m pip --version
+
+      - uses: actions/checkout@v4
+
+      - name: Install exact Rockchip legacy environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$GITHUB_WORKSPACE/f2-u20-evidence"
+          DL=$(mktemp -d)
+          mkdir -p "$O/models" "$O/results"
+          cat /etc/os-release | tee "$O/results/os-release.txt"
+          python3 --version 2>&1 | tee "$O/results/python-version.txt"
+          cd "$DL"
+          curl -fL --retry 3 -o packages.zip \
+            https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.zip
+          echo 'f5de735b9b733d74f97db5cce46c2c70  packages.zip' | md5sum -c - | tee "$O/results/rockchip-package-md5.txt"
+          unzip -q packages.zip -d packages
+          WHEEL=$(find packages -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit)
+          test -n "$WHEEL"
+          sha256sum "$WHEEL" | tee "$O/results/rknn-wheel-sha256.txt"
+          python3 -m pip install --upgrade 'pip<24' wheel 'setuptools<76'
+          python3 -m pip install "$WHEEL"
+          python3 -m pip install 'tensorflow==2.2.0' 'torch==1.10.0' 'mxnet==1.5.0'
+          python3 -m pip install --no-deps 'torchvision==0.11.0'
+          python3 -m pip check | tee "$O/results/pip-check.txt" || true
+          python3 -m pip freeze | sort | tee "$O/results/pip-freeze.txt"
+          python3 - <<'PY' | tee "$O/results/environment-metadata.txt"
+          from importlib.metadata import version
+          for p in ('tensorflow','torch','torchvision','mxnet','rknn-toolkit','onnx','numpy','opencv-python'):
+              print('METADATA',p,version(p))
+          PY
+          probe () {
+            name="$1"; shift
+            set +e
+            "$@" >"$O/results/import-${name}.txt" 2>&1
+            rc=$?
+            set -e
+            echo "IMPORT_PROBE ${name} rc=${rc}" | tee -a "$O/results/import-summary.txt"
+            cat "$O/results/import-${name}.txt"
+            test "$rc" -eq 0
+          }
+          probe tensorflow python3 -X faulthandler -c 'import tensorflow as x; print("tensorflow",x.__version__)'
+          probe torch python3 -X faulthandler -c 'import torch as x; print("torch",x.__version__)'
+          probe torchvision python3 -X faulthandler -c 'import torchvision as x; print("torchvision",x.__version__)'
+          probe mxnet python3 -X faulthandler -c 'import mxnet as x; print("mxnet",x.__version__)'
+          probe cv2 python3 -X faulthandler -c 'import cv2; print("cv2",cv2.__version__)'
+          python3 -X faulthandler - <<'PY' 2>&1 | tee "$O/results/rknn-constructor.txt"
+          from rknn.api import RKNN
+          r=RKNN(verbose=True); r.release()
+          print('UBUNTU2004_RKNN_1_7_5_CONSTRUCTOR_PASS')
+          PY
+          cd "$GITHUB_WORKSPACE"
+          python3 "$D/build_f2_onnx.py" --out "$O/models"
+
+      - name: Reproduce RV1126 float and negative operator boundary
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$GITHUB_WORKSPACE/f2-u20-evidence"
+          python3 "$D/run_f2_legacy_conversion.py" --models "$O/models" --out "$O/results" \
+            2>&1 | tee "$O/results/converter.log"
+          python3 - <<'PY' "$O"
+          import hashlib,json,pathlib,sys
+          o=pathlib.Path(sys.argv[1]); rs=json.load(open(o/'results/F2_CONVERSION_RESULTS.json'))
+          by={r['model']:r for r in rs}
+          def ok(n):
+              r=by[n]; return r['load_ret']==0 and r['build_ret']==0 and r['export_ret']==0 and not r['exception']
+          assert ok('rv1126_f2_positive.onnx'), by['rv1126_f2_positive.onnx']
+          assert not ok('rv1126_f2_resize.onnx'), by['rv1126_f2_resize.onnx']
+          assert not ok('rv1126_f2_warp.onnx'), by['rv1126_f2_warp.onnx']
+          p=o/'results/rv1126_f2_positive.rknn'; assert p.exists() and p.stat().st_size>0
+          print('UBUNTU2004_F2_OPERATOR_GATE_PASS')
+          print('FLOAT_RKNN_SIZE',p.stat().st_size)
+          print('FLOAT_RKNN_SHA256',hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+          python3 - <<'PY' "$O/results/converter.log" | tee "$O/results/fallback-audit.txt"
+          import pathlib,re,sys
+          s=re.sub(r'\x1b\[[0-9;]*m','',pathlib.Path(sys.argv[1]).read_text(errors='replace'))
+          parts=s.split('W rknn-toolkit version: 1.7.5')
+          positive=parts[1] if len(parts)>1 else s
+          if len(parts)>2: positive=positive.rsplit('W rknn-toolkit version: 1.7.5',1)[0]
+          fallback=[ln for ln in positive.splitlines() if 'fallback' in ln.lower() or 'cpu fallback' in ln.lower()]
+          mappings={op:len(re.findall(r"Match r_%s\b"%op,positive)) for op in ('conv','relu','add')}
+          print('POSITIVE_OPERATOR_MAPPINGS',mappings)
+          print('TARGET_CPU_FALLBACK_LINES',fallback)
+          assert mappings['conv']>=10 and mappings['relu']>=9 and mappings['add']>=4
+          assert not fallback
+          print('UBUNTU2004_F2_NO_TARGET_CPU_FALLBACK_OBSERVED')
+          PY
+
+      - name: Reproduce synthetic-calibration INT8 converter path
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric
+          O="$GITHUB_WORKSPACE/f2-u20-evidence"
+          python3 "$D/run_f2_int8_conversion.py" --model "$O/models/rv1126_f2_positive.onnx" --out "$O/results/int8" \
+            2>&1 | tee "$O/results/int8-converter.log"
+          grep -F 'RV1126_F2_INT8_CONVERTER_PATH_PASS' "$O/results/int8-converter.log"
+
+      - name: Hash compact clean-room evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$GITHUB_WORKSPACE/f2-u20-evidence"
+          find "$O/models" "$O/results" -type f -print0 | sort -z | xargs -0 sha256sum | tee "$O/SHA256SUMS"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f2-ubuntu2004-cleanroom
+          path: f2-u20-evidence/**
+          if-no-files-found: error

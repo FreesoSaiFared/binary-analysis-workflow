@@ -1,0 +1,144 @@
+name: RV1126 F6C ComfyUI-compatible real pixel path
+
+on:
+  push:
+    branches: [rv1126-generative-video-f0-f1]
+    paths:
+      - '.github/workflows/stage-rv1126-f6c-comfy-pixel.yml'
+      - 'experiments/rv1126-generative-video-fabric-sim/Cargo.toml'
+      - 'experiments/rv1126-generative-video-fabric-sim/Cargo.lock'
+      - 'experiments/rv1126-generative-video-fabric-sim/src/lib.rs'
+      - 'experiments/rv1126-generative-video-fabric-sim/src/bin/rvworker_sim.rs'
+      - 'experiments/rv1126-generative-video-fabric-sim/src/bin/rvfabricd_pixel.rs'
+      - 'experiments/rv1126-generative-video-fabric-sim/comfyui_rvfabric_node.py'
+      - 'experiments/rv1126-generative-video-fabric-sim/f6c_pixel_acceptance.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f6c-pixels:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: experiments/rv1126-generative-video-fabric-sim
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record environment and build locked Rust data plane
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p evidence
+          rustc --version | tee evidence/rustc.txt
+          cargo --version | tee evidence/cargo.txt
+          python3 --version | tee evidence/python.txt
+          sha256sum Cargo.lock | tee evidence/Cargo.lock.sha256
+          cargo test --locked 2>&1 | tee evidence/cargo-test.log
+          cargo build --release --locked 2>&1 | tee evidence/cargo-build.log
+
+      - name: Prepare isolated Python control-plane environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install numpy
+          python -m py_compile comfyui_rvfabric_node.py f6c_pixel_acceptance.py
+          python - <<'PY' | tee evidence/comfy-adapter-structure.txt
+          import importlib.util
+          s=importlib.util.spec_from_file_location('n','comfyui_rvfabric_node.py')
+          m=importlib.util.module_from_spec(s); s.loader.exec_module(m)
+          assert 'RVFabricExpand' in m.NODE_CLASS_MAPPINGS
+          print('RV1126_F6C_COMFY_ADAPTER_STRUCTURE_PASS')
+          PY
+
+      - name: Clean four-worker real-pixel path must be byte exact
+        shell: bash
+        run: |
+          set -euo pipefail
+          . .venv/bin/activate
+          pids=()
+          cleanup() { for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done; wait 2>/dev/null || true; }
+          trap cleanup EXIT
+          for p in 19210 19211 19212 19213; do
+            target/release/rvworker-sim --port "$p" --npu-ms 1 --rga-ms 0 --vpu-ms 0 >"evidence/clean-worker-$p.log" 2>&1 &
+            pids+=("$!")
+          done
+          target/release/rvfabricd-pixel --listen 127.0.0.1:19020 \
+            --workers 127.0.0.1:19210,127.0.0.1:19211,127.0.0.1:19212,127.0.0.1:19213 \
+            --timeout-ms 500 >evidence/clean-daemon.log 2>&1 &
+          pids+=("$!")
+          sleep 1
+          python f6c_pixel_acceptance.py --mode clean --generation 11 --port 19020 \
+            --out evidence/F6C_CLEAN_PIXEL_RESULT.json | tee evidence/f6c-clean.log
+
+      - name: Faulted worker must fall back without changing a pixel
+        shell: bash
+        run: |
+          set -euo pipefail
+          . .venv/bin/activate
+          pids=()
+          cleanup() { for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done; wait 2>/dev/null || true; }
+          trap cleanup EXIT
+          target/release/rvworker-sim --port 19220 --npu-ms 1 --rga-ms 0 --vpu-ms 0 >evidence/fault-worker-19220.log 2>&1 & pids+=("$!")
+          target/release/rvworker-sim --port 19221 --npu-ms 1 --rga-ms 0 --vpu-ms 0 --drop-every 3 >evidence/fault-worker-19221.log 2>&1 & pids+=("$!")
+          target/release/rvworker-sim --port 19222 --npu-ms 1 --rga-ms 0 --vpu-ms 0 >evidence/fault-worker-19222.log 2>&1 & pids+=("$!")
+          target/release/rvworker-sim --port 19223 --npu-ms 1 --rga-ms 0 --vpu-ms 0 >evidence/fault-worker-19223.log 2>&1 & pids+=("$!")
+          target/release/rvfabricd-pixel --listen 127.0.0.1:19021 \
+            --workers 127.0.0.1:19220,127.0.0.1:19221,127.0.0.1:19222,127.0.0.1:19223 \
+            --timeout-ms 250 >evidence/fault-daemon.log 2>&1 & pids+=("$!")
+          sleep 1
+          python f6c_pixel_acceptance.py --mode fault --generation 12 --port 19021 \
+            --out evidence/F6C_FAULT_PIXEL_RESULT.json | tee evidence/f6c-fault.log
+
+      - name: Seal F6C run-local acceptance summary
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY' | tee evidence/F6C_ASSERTIONS.log
+          import json, pathlib
+          e=pathlib.Path('evidence')
+          clean=json.loads((e/'F6C_CLEAN_PIXEL_RESULT.json').read_text())
+          fault=json.loads((e/'F6C_FAULT_PIXEL_RESULT.json').read_text())
+          assert clean['byte_exact_against_independent_reference'] is True
+          assert fault['byte_exact_against_independent_reference'] is True
+          assert clean['metadata']['fallback_count']==0
+          assert clean['metadata']['worker_generated_count']==25
+          assert fault['metadata']['fallback_count']>0
+          assert fault['metadata']['worker_generated_count']<25
+          assert clean['output_shape']==fault['output_shape']==[31,360,640,3]
+          record={
+            'protocol':'RV1126_F6C_COMFY_PIXEL_PATH/1',
+            'status':'PASS',
+            'clean':clean,
+            'fault':fault,
+            'claims':{
+              'real_rgb_payload_transport':'PROVEN_ON_LOOPBACK',
+              'four_worker_interval_distribution':'EXECUTED',
+              'ordered_output_byte_exact':'PROVEN',
+              'worker_failure_linear_fallback_byte_exact':'PROVEN',
+              'comfyui_compatible_adapter':'EXECUTED_WITH_NUMPY_IMAGE_BATCH',
+              'trained_decoder_compute':'NOT_EXECUTED',
+              'rv1126_silicon':'NOT_EXECUTED'
+            }
+          }
+          (e/'RV1126_F6C_COMFY_PIXEL_ACCEPTANCE.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
+          print('RV1126_F6C_COMFY_PIXEL_ACCEPTANCE_PASS')
+          PY
+
+      - name: Hash compact evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          find evidence -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > evidence/SHA256SUMS
+          cat evidence/RV1126_F6C_COMFY_PIXEL_ACCEPTANCE.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f6c-comfy-pixel-evidence
+          path: experiments/rv1126-generative-video-fabric-sim/evidence/**
+          if-no-files-found: error

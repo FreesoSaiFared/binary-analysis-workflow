@@ -1,0 +1,48 @@
+{
+  "checks": {
+    "c_fsyntax_only_against_pinned_original_rknpu1_header": "success",
+    "python_ast_and_contract_assertions": "success",
+    "python_compile": "success"
+  },
+  "claims": {
+    "f5a_rknn_runtime_image_quality": "NOT_TESTED",
+    "f5b_rv1126_silicon_timing": "NOT_TESTED",
+    "full_pipeline_1080p60": "NOT_TESTED"
+  },
+  "diagnostic_log_tail": {
+    "c": [
+      "OBSERVED_UPSTREAM_MASTER=e0cb42b645707ca12518c43dcee7c4968cbe918f",
+      "PINNED_RKNPU1=e0cb42b645707ca12518c43dcee7c4968cbe918f",
+      "int64_t run_duration; /* real inference time (us) */",
+      "RV1126_F5B_PINNED_RKNPU1_C_API_STATIC_PREFLIGHT_PASS"
+    ],
+    "contract": [
+      "RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT_PASS",
+      "NO_RV1126_RUNTIME_OR_SILICON_EXECUTION_PERFORMED"
+    ],
+    "python": []
+  },
+  "github": {
+    "repository": "FreesoSaiFared/binary-analysis-workflow",
+    "run_attempt": 1,
+    "run_id": 32473993520,
+    "tested_head_sha": "7a4435316e63233f9a960ff81aa037b185aafa75",
+    "workflow": "RV1126 F5 physical-device harness preflight"
+  },
+  "preservation": {
+    "rk3588_v9_v10": "UNCHANGED",
+    "rv1126_f1_f2_f3_f4": "UNCHANGED"
+  },
+  "protocol": "RV1126_F5_DEVICE_HARNESS_STATIC_PREFLIGHT/1",
+  "status": "STATIC_PREFLIGHT_PASS_NO_HARDWARE_EXECUTION",
+  "toolchain": {
+    "runner_arch": "X64",
+    "runner_os": "Linux"
+  },
+  "upstream_rknpu1": {
+    "commit": "e0cb42b645707ca12518c43dcee7c4968cbe918f",
+    "header_path": "rknn/include/rknn_runtime.h",
+    "perf_run_definition_checked": "run_duration field semantically matched as real inference time (us)",
+    "repository": "rockchip-linux/rknpu"
+  }
+}

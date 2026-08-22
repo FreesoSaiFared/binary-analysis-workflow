@@ -1,0 +1,81 @@
+{
+  "protocol": "RV1126_F3_DAYBREAK_QUALITY_PROVEN/1",
+  "status": "PROVEN_NORMALIZED_REFERENCE_BASELINE",
+  "run": {
+    "run_id": 32420788406,
+    "job_id": 96592143423,
+    "commit": "1c54546addbfd2002907619168915e7c4b928987",
+    "artifact_id": 9425664224,
+    "artifact_zip_sha256": "79de4c82cade471be426b7e103ef464f99e30d2b8d83a526ad8ac1df65b60d30",
+    "artifact_size_bytes": 9469
+  },
+  "environment": {
+    "runner": "Ubuntu 24.04.4 GitHub hosted",
+    "python": "3.12.3",
+    "ffmpeg_package": "7:6.1.1-3ubuntu5",
+    "ffmpeg": "6.1.1-3ubuntu5"
+  },
+  "source": {
+    "filename": "Daybreak_Timelapse_1080p60fps.webm",
+    "source_size_bytes": 38208095,
+    "source_sha1": "055d298a675ba89a0f88f6d95fd5f0d075b64613",
+    "source_sha256": "40a143a45cd4bd0572a40d5026c35315d7e0eab94a25aac138367830c37234aa",
+    "width": 1920,
+    "height": 1080,
+    "r_frame_rate": "30/1",
+    "avg_frame_rate_metadata": "1000/1",
+    "decoded_frames": 2905,
+    "duration_seconds": 96.94,
+    "decoded_fps": 29.966989890654013,
+    "license": "CC BY 3.0; FreeSwissVideo via Wikimedia Commons",
+    "source_identity_verified": true
+  },
+  "reference": {
+    "segment_start_seconds": 20.0,
+    "segment_duration_seconds": 3.0,
+    "reference_fps": 60,
+    "reference_frames": 180,
+    "construction": "native ~29.97-fps source normalized with FFmpeg fps=60 before spatial/temporal baseline construction",
+    "native_60fps_source": false,
+    "interpretation_limit": "The matrix is valid for this deterministic 30-to-60 normalized Daybreak reference. It is not evidence for reconstruction against native 60-fps temporal ground truth."
+  },
+  "frame_verification": {
+    "reference_and_candidate_files": 8,
+    "decoded_frames_each": 180,
+    "width_each": 1920,
+    "height_each": 1080,
+    "passed": true
+  },
+  "results": [
+    {"case":"spatial_only_360p60","authoritative_fps":60,"psnr_db":45.129452,"ssim":0.99494,"candidate_sha256":"875aaa1253022aed9053f7d7e9d36489368bc34c5a31bdcc53e38fd4baf4ccd8"},
+    {"case":"hold_5_to_60","authoritative_fps":5,"psnr_db":43.514714,"ssim":0.993302,"candidate_sha256":"b71407578f1f7175cd87be3e314724ba61558519ad62ee01711f9e531085a86c"},
+    {"case":"linear_5_to_60","authoritative_fps":5,"psnr_db":43.067109,"ssim":0.993016,"candidate_sha256":"4ac51f55a1243f5faf0b3cc9aa719e5c947787e7ee1b2230274347acbf3a45dc"},
+    {"case":"hold_10_to_60","authoritative_fps":10,"psnr_db":44.226303,"ssim":0.994066,"candidate_sha256":"9164a81b9246a35f5b295a22a9ab2a61b11307aead7a92e4cc1f81e8d363e843"},
+    {"case":"linear_10_to_60","authoritative_fps":10,"psnr_db":43.825843,"ssim":0.993713,"candidate_sha256":"15b997636b1a0fb5a325ea778fd55ad5fc2160f1791d7bd244471014c260d71f"},
+    {"case":"hold_15_to_60","authoritative_fps":15,"psnr_db":44.424264,"ssim":0.994284,"candidate_sha256":"7b68d57f0381147f5a50b73c9ce2fa4eb328906452c1d086a84ec2897ecacada"},
+    {"case":"linear_15_to_60","authoritative_fps":15,"psnr_db":44.268722,"ssim":0.994131,"candidate_sha256":"e696961aa337fd1fd0ce8726b557912d2e4d0b0d54ad3491e4dca9ee6a15aafa"}
+  ],
+  "ranking": {
+    "psnr": ["spatial_only_360p60","hold_15_to_60","linear_15_to_60","hold_10_to_60","linear_10_to_60","hold_5_to_60","linear_5_to_60"],
+    "ssim": ["spatial_only_360p60","hold_15_to_60","linear_15_to_60","hold_10_to_60","linear_10_to_60","hold_5_to_60","linear_5_to_60"]
+  },
+  "temporal_findings": {
+    "5fps_linear_minus_hold": {"psnr_db": -0.447605, "ssim": -0.000286},
+    "10fps_linear_minus_hold": {"psnr_db": -0.40046, "ssim": -0.000353},
+    "15fps_linear_minus_hold": {"psnr_db": -0.155542, "ssim": -0.000153},
+    "best_temporal_case": "hold_15_to_60",
+    "best_temporal_gap_to_spatial_only": {"psnr_db": -0.705188, "ssim": -0.000656},
+    "interpretation": "On this normalized Daybreak reference, hold beats FFmpeg linear interpolation at 5, 10 and 15 authoritative fps on both PSNR and SSIM. Because the source itself is ~30 fps and the 60-fps reference duplicates/normalizes temporal positions, this result can bias toward hold and must not be generalized to native-60-fps footage."
+  },
+  "reproducibility_observation": {
+    "metric_values_identical_to_prior_pre-cadence-fix_run": true,
+    "candidate_file_hashes_identical_to_prior_run": false,
+    "interpretation": "Metric determinism was observed across the two executions, while FFV1 container/file bytes changed; candidate byte identity is therefore not an acceptance requirement."
+  },
+  "scope_limits": [
+    "No RV1126 silicon timing was measured.",
+    "No neural reconstruction quality was measured.",
+    "Synthetic or real-video calibration does not by itself establish model quality.",
+    "This Daybreak file is not native 60-fps temporal ground truth despite its filename."
+  ]
+}

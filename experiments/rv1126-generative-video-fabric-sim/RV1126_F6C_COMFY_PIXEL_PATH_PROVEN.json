@@ -1,0 +1,56 @@
+{
+  "protocol": "RV1126_F6C_COMFY_PIXEL_PATH_PROVEN/1",
+  "status": "PROVEN_REAL_PIXEL_DISTRIBUTED_PATH_WITH_BYTE_EXACT_FALLBACK",
+  "run": {
+    "run_id": 32556662125,
+    "job_id": 96991838751,
+    "head_sha": "c26b2c13923088cebb8ff7dcad22cd6579f9b258",
+    "artifact_id": 9471625780,
+    "artifact_size_bytes": 10017,
+    "artifact_zip_sha256": "31b7018d7d0e964708830972c43b40107c649e2a82450e2a7549f4d34a94e401",
+    "internal_sha256_entries_verified": 23,
+    "internal_sha256_entries_failed": 0
+  },
+  "path": {
+    "control_plane": "ComfyUI-compatible Python IMAGE-batch adapter",
+    "data_plane": "native Rust rvfabricd-pixel",
+    "workers": "four persistent rvworker-sim TCP processes",
+    "pixel_format": "RGB uint8 640x360",
+    "source_to_target_fps": "10_to_60",
+    "authoritative_frames": 6,
+    "output_frames": 31,
+    "reconstructed_frames": 25,
+    "state_semantics": "whole authoritative interval ownership, cached left/right endpoints, monotonic generation, phase byte per intermediate frame"
+  },
+  "clean": {
+    "worker_generated_frames": 25,
+    "linear_fallback_frames": 0,
+    "byte_exact_against_independent_reference": true,
+    "fabric_output_sha256": "54d30e7c02928eac279217727282300e45fe3895cb7536fde99907d5b612eb14",
+    "independent_reference_sha256": "54d30e7c02928eac279217727282300e45fe3895cb7536fde99907d5b612eb14"
+  },
+  "faulted": {
+    "injected_fault": "one worker connection drops on its third reconstructed-frame job",
+    "worker_generated_frames": 22,
+    "linear_fallback_frames": 3,
+    "fallback_positions": [9, 10, 11],
+    "byte_exact_against_independent_reference": true,
+    "fabric_output_sha256": "54d30e7c02928eac279217727282300e45fe3895cb7536fde99907d5b612eb14",
+    "independent_reference_sha256": "54d30e7c02928eac279217727282300e45fe3895cb7536fde99907d5b612eb14"
+  },
+  "claims": {
+    "real_rgb_bytes_cross_native_host_worker_protocol": true,
+    "four_worker_interval_distribution_executed": true,
+    "comfyui_compatible_numpy_image_batch_adapter_executed": true,
+    "ordered_output_byte_exact": true,
+    "worker_failure_linear_fallback_byte_exact": true,
+    "trained_neural_decoder_executed": false,
+    "rv1126_silicon_executed": false,
+    "host_wall_time_is_silicon_timing": false
+  },
+  "next_acceptance_frontier": "F6D: replace deterministic-linear simulated compute with the exact sealed F4 trained ONNX decoder behind the same RVFABRIC pixel protocol, while retaining the native host data plane and independent output verification.",
+  "preservation": {
+    "rk3588_v9_v10": "UNCHANGED",
+    "rv1126_f1_f2_f3_f4_f5_f6": "UNCHANGED"
+  }
+}

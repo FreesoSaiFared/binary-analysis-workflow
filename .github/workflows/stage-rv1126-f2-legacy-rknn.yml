@@ -1,0 +1,153 @@
+name: Probe RV1126 legacy RKNN F2 operator gate
+
+on:
+  push:
+    branches: [rv1126-generative-video-f0-f1]
+    paths:
+      - 'experiments/rv1126-generative-video-fabric/build_f2_onnx.py'
+      - 'experiments/rv1126-generative-video-fabric/run_f2_legacy_conversion.py'
+      - 'experiments/rv1126-generative-video-fabric/run_f2_int8_conversion.py'
+      - 'experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F2_*'
+      - '.github/workflows/stage-rv1126-f2-legacy-rknn.yml'
+  pull_request:
+    paths:
+      - 'experiments/rv1126-generative-video-fabric/**'
+      - '.github/workflows/stage-rv1126-f2-legacy-rknn.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-converter-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Build ONNX controls at legacy-compatible opset
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade 'pip<24' wheel setuptools
+          python -m pip install 'numpy<1.24' 'protobuf<4' 'onnx==1.12.0'
+          D=experiments/rv1126-generative-video-fabric
+          O="$RUNNER_TEMP/f2"
+          mkdir -p "$O/models" "$O/results"
+          python "$D/build_f2_onnx.py" --out "$O/models"
+          python - <<'PY' "$O/models"
+          import onnx, pathlib, sys
+          for p in sorted(pathlib.Path(sys.argv[1]).glob('*.onnx')):
+              m=onnx.load(str(p))
+              if 'warp' not in p.name: onnx.checker.check_model(m)
+              print('ONNX_CONTROL',p.name,'ir',m.ir_version,'opset',[(x.domain,x.version) for x in m.opset_import],
+                    'ops',[n.op_type for n in m.graph.node])
+          PY
+
+      - name: Install and diagnose exact legacy RKNN-Toolkit 1.7.5 environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          O="$RUNNER_TEMP/f2"; cd "$O"
+          curl -fL --retry 3 -o packages.zip https://github.com/rockchip-linux/rknn-toolkit/releases/download/v1.7.5/rknn-toolkit-v1.7.5-packages.zip
+          echo 'f5de735b9b733d74f97db5cce46c2c70  packages.zip' | md5sum -c -
+          unzip -q packages.zip -d packages
+          WHEEL=$(find packages -name 'rknn_toolkit-1.7.5-cp38-cp38-linux_x86_64.whl' -print -quit); test -n "$WHEEL"
+          python -m pip install "$WHEEL"
+          # Exact Rockchip v1.7.5 packages/requirements-cpu-ubuntu20.04_py38.txt.
+          # torchvision 0.11.0 is yanked because its metadata names torch 1.10.0+cu102;
+          # Rockchip's requirements pin torch==1.10.0. Install exact named releases and
+          # preserve pip-check evidence rather than concealing the historical mismatch.
+          python -m pip install 'tensorflow==2.2.0' 'torch==1.10.0' 'mxnet==1.5.0'
+          python -m pip install --no-deps 'torchvision==0.11.0'
+          python -m pip check | tee "$O/results/pip-check.txt" || true
+          python - <<'PY' | tee "$O/results/environment-metadata.txt"
+          from importlib.metadata import version
+          for p in ('tensorflow','torch','torchvision','mxnet','rknn-toolkit','onnx','numpy'):
+              print('LEGACY_ENV_METADATA',p,version(p))
+          PY
+          probe () { name="$1"; shift; set +e; "$@" >"$O/results/import-${name}.txt" 2>&1; rc=$?; set -e; echo "IMPORT_PROBE ${name} rc=${rc}" | tee -a "$O/results/import-summary.txt"; cat "$O/results/import-${name}.txt"; }
+          probe tensorflow python -X faulthandler -c 'import tensorflow as x; print("tensorflow",x.__version__)'
+          probe torch python -X faulthandler -c 'import torch as x; print("torch",x.__version__)'
+          probe torchvision python -X faulthandler -c 'import torchvision as x; print("torchvision",x.__version__)'
+          probe mxnet python -X faulthandler -c 'import mxnet as x; print("mxnet",x.__version__)'
+          set +e
+          python -X faulthandler - <<'PY' >"$O/results/rknn-constructor.txt" 2>&1
+          from rknn.api import RKNN
+          x=RKNN(verbose=True); x.release(); print('RKNN_TOOLKIT_1_7_5_CONSTRUCTOR_PASS')
+          PY
+          ctor_rc=$?; set -e
+          echo "RKNN_CONSTRUCTOR_RC=${ctor_rc}" | tee -a "$O/results/import-summary.txt"
+          cat "$O/results/rknn-constructor.txt"; test "$ctor_rc" -eq 0
+
+      - name: Run RV1126 graph-conversion probes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric; O="$RUNNER_TEMP/f2"
+          python "$D/run_f2_legacy_conversion.py" --models "$O/models" --out "$O/results" 2>&1 | tee "$O/results/converter.log"
+
+      - name: Require positive export and fail-closed controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          O="$RUNNER_TEMP/f2"
+          python - <<'PY' "$O"
+          import hashlib,json,pathlib,sys
+          o=pathlib.Path(sys.argv[1]); rs=json.load(open(o/'results/F2_CONVERSION_RESULTS.json')); by={r['model']:r for r in rs}
+          def ok(n):
+              r=by[n]; return r['load_ret']==0 and r['build_ret']==0 and r['export_ret']==0 and not r['exception']
+          assert ok('rv1126_f2_positive.onnx'), by['rv1126_f2_positive.onnx']
+          assert not ok('rv1126_f2_resize.onnx'), by['rv1126_f2_resize.onnx']
+          assert not ok('rv1126_f2_warp.onnx'), by['rv1126_f2_warp.onnx']
+          p=o/'results/rv1126_f2_positive.rknn'; assert p.exists() and p.stat().st_size>0
+          print('RV1126_F2_OPERATOR_DISCRIMINATOR_PASS positive_compiles resize_and_warp_fail_closed')
+          print('F2_FLOAT_RKNN_SIZE',p.stat().st_size)
+          print('F2_FLOAT_RKNN_SHA256',hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+          # Positive segment has host-side TensorFlow CPU validation but must not contain
+          # an RKNN CPU-fallback claim. The negative controls are allowed to say unsupported.
+          python - <<'PY' "$O/results/converter.log" | tee "$O/results/fallback-audit.txt"
+          import pathlib,re,sys
+          s=re.sub(r'\x1b\[[0-9;]*m','',pathlib.Path(sys.argv[1]).read_text(errors='replace'))
+          parts=s.split('W rknn-toolkit version: 1.7.5')
+          positive=parts[1] if len(parts)>1 else s
+          if len(parts)>2: positive=positive.rsplit('W rknn-toolkit version: 1.7.5',1)[0]
+          fallback=[ln for ln in positive.splitlines() if 'fallback' in ln.lower() or 'cpu fallback' in ln.lower()]
+          mappings={op:len(re.findall(r"Match r_%s\b"%op,positive)) for op in ('conv','relu','add')}
+          print('POSITIVE_OPERATOR_MAPPINGS',mappings)
+          print('TARGET_CPU_FALLBACK_LINES',fallback)
+          assert mappings['conv']>=10 and mappings['relu']>=9 and mappings['add']>=4
+          assert not fallback
+          print('RV1126_F2_NO_TARGET_CPU_FALLBACK_OBSERVED')
+          PY
+
+      - name: Prove synthetic-calibration INT8 converter path
+        shell: bash
+        run: |
+          set -euxo pipefail
+          D=experiments/rv1126-generative-video-fabric; O="$RUNNER_TEMP/f2"
+          python "$D/run_f2_int8_conversion.py" --model "$O/models/rv1126_f2_positive.onnx" --out "$O/results/int8" 2>&1 | tee "$O/results/int8-converter.log"
+          grep -F 'RV1126_F2_INT8_CONVERTER_PATH_PASS' "$O/results/int8-converter.log"
+
+      - name: Hash evidence
+        if: always()
+        shell: bash
+        run: |
+          O="$RUNNER_TEMP/f2"
+          find "$O/models" "$O/results" -type f -print0 | sort -z | xargs -0 sha256sum | tee "$O/SHA256SUMS" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f2-legacy-rknn-probe
+          path: |
+            ${{ runner.temp }}/f2/models/**
+            ${{ runner.temp }}/f2/results/**
+            ${{ runner.temp }}/f2/SHA256SUMS
+            experiments/rv1126-generative-video-fabric/build_f2_onnx.py
+            experiments/rv1126-generative-video-fabric/run_f2_legacy_conversion.py
+            experiments/rv1126-generative-video-fabric/run_f2_int8_conversion.py
+            experiments/rv1126-generative-video-fabric/RV1126_GENERATIVE_VIDEO_FABRIC_F2_TINY_CNN_BUDGET.json
+          if-no-files-found: warn

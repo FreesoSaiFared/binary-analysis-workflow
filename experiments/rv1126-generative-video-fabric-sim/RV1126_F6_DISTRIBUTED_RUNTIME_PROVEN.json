@@ -1,0 +1,76 @@
+{
+  "protocol": "RV1126_F6_DISTRIBUTED_RUNTIME_PROVEN/1",
+  "status": "PROVEN_SOFTWARE_RUNTIME_AND_MODELED_SURVIVAL_ENVELOPE",
+  "run": {
+    "run_id": 32556291278,
+    "job_id": 96990876117,
+    "head_sha": "78e191e3a1b442e7a915e54df3e0d4f7be562821",
+    "artifact_id": 9471513221,
+    "artifact_size_bytes": 110845,
+    "artifact_zip_sha256": "54440af4c8321f9e144e29511d659732694b6529f5d69f244b1d1ee9a149eb3d",
+    "internal_sha256_entries_verified": 27,
+    "internal_sha256_entries_failed": 0
+  },
+  "runtime_architecture": {
+    "host": "native Rust rvfabricd-sim",
+    "workers": 4,
+    "transport": "real loopback TCP using RVFABRIC/1 JSON-line control protocol",
+    "ownership": "whole authoritative-frame interval assigned round-robin to one worker",
+    "cache": "left/right 640x360 RGB endpoints cached once per interval; all phase jobs reuse the pair",
+    "generation_rule": "monotonic clip generation; stale generations rejected without mutating current generation",
+    "failure_policy": "late/missing learned result uses deterministic linear fallback; presentation does not wait for neural completion"
+  },
+  "clean_runtime": {
+    "worker_model": {"npu_ms": 20.0, "rga_ms": 2.0, "vpu_ms": 1.0},
+    "5_to_60": {"reconstructed_jobs": 220, "linear_fallbacks": 0, "neural_deadline_success_rate": 1.0, "observed_loopback_reconstructed_fps": 172.25218761296122},
+    "10_to_60": {"reconstructed_jobs": 200, "linear_fallbacks": 0, "neural_deadline_success_rate": 1.0, "observed_loopback_reconstructed_fps": 172.38283998125885},
+    "15_to_60": {"reconstructed_jobs": 180, "linear_fallbacks": 0, "neural_deadline_success_rate": 1.0, "observed_loopback_reconstructed_fps": 172.34215505877802},
+    "stale_generation_probe": "PASS"
+  },
+  "faulted_runtime": {
+    "source_to_target_fps": "5_to_60",
+    "reconstructed_jobs": 330,
+    "faults": [
+      "worker periodic 120 ms stall",
+      "worker periodic connection drop",
+      "worker sustained 2.5x thermal-throttle simulation",
+      "worker up to 15 ms deterministic jitter"
+    ],
+    "linear_fallbacks": 10,
+    "neural_deadline_success_rate": 0.9696969696969697,
+    "presentation_success_rate": 1.0,
+    "interpretation": "Injected worker failures degraded enhancement coverage rather than stalling the output timeline."
+  },
+  "survival_envelope": {
+    "cases": 1296,
+    "frontiers": 108,
+    "assumed_link": "1 GbE for the selected frontiers below",
+    "assumed_endpoint_pair_bytes_per_interval": 1382400,
+    "assumed_encoded_bytes_per_reconstructed_frame": 20000,
+    "zero_jitter_four_node": {
+      "5_to_60": {"max_tested_npu_ms_99_9_neural_deadlines": 20.0, "max_tested_npu_ms_throughput_sustainable": 65.0},
+      "10_to_60": {"max_tested_npu_ms_99_9_neural_deadlines": 45.0, "max_tested_npu_ms_throughput_sustainable": 65.0},
+      "15_to_60": {"max_tested_npu_ms_99_9_neural_deadlines": 75.0, "max_tested_npu_ms_throughput_sustainable": 75.0}
+    },
+    "5_to_60_jitter_sensitivity": {
+      "0_ms_jitter": {"deadline_frontier_ms": 20.0, "throughput_frontier_ms": 65.0},
+      "5_ms_jitter": {"deadline_frontier_ms": 16.0, "throughput_frontier_ms": 65.0},
+      "20_ms_jitter": {"deadline_frontier_ms": 12.0, "throughput_frontier_ms": 55.0}
+    }
+  },
+  "claims": {
+    "actual_distributed_host_worker_protocol_executed": true,
+    "persistent_worker_generation_and_cache_state_executed": true,
+    "fault_recovery_via_linear_fallback_executed": true,
+    "host_loopback_wall_time_is_rv1126_silicon_timing": false,
+    "survival_envelope_is_rv1126_silicon_timing": false,
+    "rv1126_ddr_behavior_measured": false,
+    "rv1126_thermal_behavior_measured": false,
+    "full_comfyui_pixel_pipeline_executed": false
+  },
+  "next_acceptance_frontier": "F6C: real pixel tensors from a ComfyUI-compatible adapter through rvfabricd into simulated workers and back into an ordered video result, using the same generation/cache/fallback contract.",
+  "preservation": {
+    "rk3588_v9_v10": "UNCHANGED",
+    "rv1126_f1_f2_f3_f4_f5_static": "UNCHANGED"
+  }
+}
