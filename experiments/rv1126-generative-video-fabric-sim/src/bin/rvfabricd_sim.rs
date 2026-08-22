@@ -237,7 +237,8 @@ fn main() {
     let workers: Vec<String> = workers_arg.split(',').map(|s| s.to_string()).collect();
     let source_fps: u32 = arg("--source-fps", 10u32);
     let target_fps: u32 = arg("--target-fps", 60u32);
-    let seconds: u32 = arg("--seconds", 6u32);`n    let generation: u64 = arg("--generation", 1u64);
+    let seconds: u32 = arg("--seconds", 6u32);
+    let generation: u64 = arg("--generation", 1u64);
     let timeout_ms: u64 = arg("--timeout-ms", 250u64);
     let playout_delay_ms: f64 = arg("--playout-delay-ms", 500.0);
     let left_bytes: usize = arg("--left-bytes", 691_200usize);
