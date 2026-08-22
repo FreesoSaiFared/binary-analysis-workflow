@@ -16,5 +16,9 @@ name = "rvfabricd-sim"
 path = "src/bin/rvfabricd_sim.rs"
 
 [[bin]]
+name = "rvfabricd-pixel"
+path = "src/bin/rvfabricd_pixel.rs"
+
+[[bin]]
 name = "f6-envelope"
 path = "src/bin/f6_envelope.rs"
