@@ -217,14 +217,12 @@ fn worker_thread(
     }
 }
 
-fn stale_probe(addr: &str, timeout: Duration) -> String {
+fn stale_probe(addr: &str, timeout: Duration, generation: u64) -> String {
+    if generation == 0 { return "UNAVAILABLE:generation_zero".into(); }
     match connect(addr, timeout) {
         Ok((mut reader, mut writer)) => {
-            let high = Command::CacheInterval { generation: 9, interval_id: 900, left_frame_id: 1, right_frame_id: 2, left_bytes: 1, right_bytes: 1 };
-            let low = Command::CacheInterval { generation: 8, interval_id: 800, left_frame_id: 3, right_frame_id: 4, left_bytes: 1, right_bytes: 1 };
-            if send_command(&mut writer, &high).is_err() { return "probe_write_fail".into(); }
-            let _ = read_response(&mut reader);
-            if send_command(&mut writer, &low).is_err() { return "probe_write_fail".into(); }
+            let stale = Command::CacheInterval { generation: generation - 1, interval_id: u64::MAX - 1, left_frame_id: 3, right_frame_id: 4, left_bytes: 1, right_bytes: 1 };
+            if send_command(&mut writer, &stale).is_err() { return "probe_write_fail".into(); }
             match read_response(&mut reader) {
                 Ok(Response::Rejected { reason }) if reason == "stale_generation" => "PASS".into(),
                 other => format!("FAIL:{other:?}"),
@@ -239,7 +237,7 @@ fn main() {
     let workers: Vec<String> = workers_arg.split(',').map(|s| s.to_string()).collect();
     let source_fps: u32 = arg("--source-fps", 10u32);
     let target_fps: u32 = arg("--target-fps", 60u32);
-    let seconds: u32 = arg("--seconds", 6u32);
+    let seconds: u32 = arg("--seconds", 6u32);`n    let generation: u64 = arg("--generation", 1u64);
     let timeout_ms: u64 = arg("--timeout-ms", 250u64);
     let playout_delay_ms: f64 = arg("--playout-delay-ms", 500.0);
     let left_bytes: usize = arg("--left-bytes", 691_200usize);
@@ -277,7 +275,7 @@ fn main() {
         let interval_phases: Vec<(u64, u8)> = phases.iter().enumerate()
             .map(|(i, p)| (left + i as u64 + 1, *p)).collect();
         let task = IntervalTask {
-            generation: 1,
+            generation,
             interval_id: interval as u64,
             left_frame_id: left,
             right_frame_id: right,
@@ -296,7 +294,7 @@ fn main() {
     let fallbacks = expected_jobs - neural_on_time;
     let ready: Vec<f64> = results.iter().filter_map(|r| r.neural_ready_ms).collect();
     let encoded_output_bytes = results.iter().map(|r| r.encoded_bytes).sum();
-    let stale_generation_probe = stale_probe(&workers[0], timeout);
+    let stale_generation_probe = stale_probe(&workers[0], timeout, generation);
     let summary = Summary {
         protocol: "RVFABRIC_F6_RUNTIME/1",
         status: if stale_generation_probe == "PASS" { "RUNTIME_COMPLETED" } else { "RUNTIME_COMPLETED_WITH_PROTOCOL_PROBE_FAILURE" },
