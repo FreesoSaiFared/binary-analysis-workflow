@@ -13,7 +13,23 @@ pub enum Command {
         left_bytes: usize,
         right_bytes: usize,
     },
+    CacheIntervalPixels {
+        generation: u64,
+        interval_id: u64,
+        left_frame_id: u64,
+        right_frame_id: u64,
+        width: usize,
+        height: usize,
+        left_bytes: usize,
+        right_bytes: usize,
+    },
     Phase {
+        generation: u64,
+        interval_id: u64,
+        job_id: u64,
+        phase_u8: u8,
+    },
+    PhasePixels {
         generation: u64,
         interval_id: u64,
         job_id: u64,
@@ -26,6 +42,7 @@ pub enum Command {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Response {
     HelloAck { protocol: String },
+    PayloadReady { generation: u64, interval_id: u64, total_bytes: usize },
     Cached { generation: u64, interval_id: u64 },
     Result {
         generation: u64,
@@ -34,6 +51,14 @@ pub enum Response {
         phase_u8: u8,
         simulated_compute_ms: f64,
         encoded_bytes: usize,
+    },
+    ResultPixels {
+        generation: u64,
+        interval_id: u64,
+        job_id: u64,
+        phase_u8: u8,
+        simulated_compute_ms: f64,
+        payload_bytes: usize,
     },
     ResetAck { generation: u64 },
     Rejected { reason: String },
@@ -80,6 +105,14 @@ pub struct WorkerState {
 }
 
 impl WorkerState {
+    pub fn validate_cache_generation(&self, generation: u64) -> Result<(), &'static str> {
+        if generation < self.generation {
+            Err("stale_generation")
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn handle_cache(
         &mut self,
         generation: u64,
@@ -139,6 +172,16 @@ pub fn phase_positions(source_fps: u32, target_fps: u32) -> Vec<u8> {
         .collect()
 }
 
+pub fn interpolate_rgb_u8(left: &[u8], right: &[u8], phase_u8: u8) -> Vec<u8> {
+    assert_eq!(left.len(), right.len());
+    let p = phase_u8 as u32;
+    let q = 255u32 - p;
+    left.iter()
+        .zip(right)
+        .map(|(&a, &b)| (((a as u32) * q + (b as u32) * p + 127) / 255) as u8)
+        .collect()
+}
+
 pub fn interval_jobs_per_second(source_fps: u32, target_fps: u32) -> f64 {
     (target_fps - source_fps) as f64
 }
@@ -152,6 +195,7 @@ mod tests {
         let mut s = WorkerState::default();
         let _ = s.handle_cache(4, 1, 10, 20);
         assert!(matches!(s.handle_cache(3, 2, 20, 30), Response::Rejected { .. }));
+        assert_eq!(s.validate_cache_generation(3), Err("stale_generation"));
     }
 
     #[test]
@@ -175,5 +219,14 @@ mod tests {
         assert_eq!(phase_positions(15, 60), vec![64, 128, 191]);
         assert_eq!(phase_positions(10, 60).len(), 5);
         assert_eq!(phase_positions(5, 60).len(), 11);
+    }
+
+    #[test]
+    fn pixel_interpolation_is_integer_deterministic() {
+        let left = [0u8, 10, 100, 255];
+        let right = [255u8, 110, 200, 0];
+        assert_eq!(interpolate_rgb_u8(&left, &right, 0), left);
+        assert_eq!(interpolate_rgb_u8(&left, &right, 255), right);
+        assert_eq!(interpolate_rgb_u8(&left, &right, 128), vec![128, 60, 150, 127]);
     }
 }
