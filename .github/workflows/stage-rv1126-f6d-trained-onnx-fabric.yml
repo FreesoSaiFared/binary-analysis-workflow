@@ -1,0 +1,123 @@
+name: RV1126 F6D sealed trained ONNX through fabric
+
+on:
+  push:
+    branches: [rv1126-generative-video-f0-f1]
+    paths:
+      - '.github/workflows/stage-rv1126-f6d-trained-onnx-fabric.yml'
+      - 'experiments/rv1126-generative-video-fabric-sim/Cargo.toml'
+      - 'experiments/rv1126-generative-video-fabric-sim/Cargo.lock'
+      - 'experiments/rv1126-generative-video-fabric-sim/src/lib.rs'
+      - 'experiments/rv1126-generative-video-fabric-sim/src/bin/rvfabricd_pixel.rs'
+      - 'experiments/rv1126-generative-video-fabric-sim/comfyui_rvfabric_node.py'
+      - 'experiments/rv1126-generative-video-fabric-sim/rvworker_f4_onnx_reference.py'
+      - 'experiments/rv1126-generative-video-fabric-sim/f6d_neural_acceptance.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  f6d-trained-decoder:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: experiments/rv1126-generative-video-fabric-sim
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build native host data plane
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p evidence sealed-f4
+          rustc --version | tee evidence/rustc.txt
+          cargo build --release --locked --bin rvfabricd-pixel 2>&1 | tee evidence/cargo-build.log
+
+      - name: Fetch and verify exact sealed F4 model artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 4 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/FreesoSaiFared/binary-analysis-workflow/actions/artifacts/9428837119/zip \
+            -o sealed-f4/f4.zip
+          echo '0f262cad1a22e75bf426ae0598f1aeea8535d67c980cf5a9f8d2c8dbff23f1ea  sealed-f4/f4.zip' | sha256sum -c -
+          unzip -q sealed-f4/f4.zip -d sealed-f4/unpacked
+          MODEL=sealed-f4/unpacked/models/rv1126_f4_trained_residual_raw_u8_semantics.onnx
+          test -f "$MODEL"
+          echo 'cc42f9bfc26a7cfc56a4cc8058415d2cb8b91a99614b6e3db9991f3fe4ac24ec  '"$MODEL" | sha256sum -c -
+          sha256sum "$MODEL" | tee evidence/f4-onnx-sha256.txt
+          stat -c '%s' "$MODEL" | tee evidence/f4-onnx-size.txt
+
+      - name: Prepare isolated ONNX reference-worker environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install numpy onnxruntime
+          python -m py_compile comfyui_rvfabric_node.py rvworker_f4_onnx_reference.py f6d_neural_acceptance.py
+          python - <<'PY' | tee evidence/python-environment.txt
+          import numpy, onnxruntime, sys
+          print(sys.version)
+          print('numpy', numpy.__version__)
+          print('onnxruntime', onnxruntime.__version__)
+          PY
+
+      - name: Execute sealed trained decoder behind four worker endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          . .venv/bin/activate
+          MODEL=sealed-f4/unpacked/models/rv1126_f4_trained_residual_raw_u8_semantics.onnx
+          pids=()
+          cleanup() { for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done; wait 2>/dev/null || true; }
+          trap cleanup EXIT
+          for p in 19310 19311 19312 19313; do
+            python rvworker_f4_onnx_reference.py --model "$MODEL" --port "$p" >"evidence/neural-worker-$p.log" 2>&1 &
+            pids+=("$!")
+          done
+          target/release/rvfabricd-pixel --listen 127.0.0.1:19030 \
+            --workers 127.0.0.1:19310,127.0.0.1:19311,127.0.0.1:19312,127.0.0.1:19313 \
+            --timeout-ms 30000 >evidence/neural-daemon.log 2>&1 &
+          pids+=("$!")
+          sleep 3
+          python f6d_neural_acceptance.py --model "$MODEL" --generation 21 --port 19030 \
+            --out evidence/F6D_TRAINED_ONNX_RESULT.json | tee evidence/f6d.log
+
+      - name: Mechanically assert integration boundary
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY' | tee evidence/F6D_ASSERTIONS.log
+          import json, pathlib
+          p=pathlib.Path('evidence/F6D_TRAINED_ONNX_RESULT.json')
+          x=json.loads(p.read_text())
+          assert x['status']=='PASS'
+          assert x['byte_exact_fabric_vs_direct_onnx'] is True
+          assert x['metadata']['fallback_count']==0
+          assert x['metadata']['worker_generated_count']==20
+          assert x['channel_values_changed_vs_linear']>0
+          assert x['fabric_output_sha256']==x['direct_onnx_sha256']
+          print('RV1126_F6D_DISTRIBUTED_TRAINED_DECODER_ACCEPTANCE_PASS')
+          PY
+
+      - name: Hash compact evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          find evidence -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > evidence/SHA256SUMS
+          cat evidence/F6D_TRAINED_ONNX_RESULT.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rv1126-f6d-trained-onnx-fabric-evidence
+          path: experiments/rv1126-generative-video-fabric-sim/evidence/**
+          if-no-files-found: error
