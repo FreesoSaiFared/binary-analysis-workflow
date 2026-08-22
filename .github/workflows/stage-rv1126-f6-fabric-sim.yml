@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/stage-rv1126-f6-fabric-sim.yml'
       - 'experiments/rv1126-generative-video-fabric-sim/Cargo.toml'
+      - 'experiments/rv1126-generative-video-fabric-sim/Cargo.lock'
       - 'experiments/rv1126-generative-video-fabric-sim/src/**'
   workflow_dispatch:
 
@@ -29,10 +30,9 @@ jobs:
           cargo --version | tee evidence/cargo.txt
           uname -a | tee evidence/uname.txt
 
-      - name: Resolve once, then compile and test under locked dependencies
+      - name: Compile and test under committed locked dependencies
         run: |
           set -euxo pipefail
-          cargo generate-lockfile 2>&1 | tee evidence/cargo-lock-generation.log
           cp Cargo.lock evidence/Cargo.lock
           sha256sum Cargo.lock | tee evidence/Cargo.lock.sha256
           cargo test --locked 2>&1 | tee evidence/cargo-test.log
@@ -132,7 +132,7 @@ jobs:
       - name: Hash evidence
         run: |
           set -euxo pipefail
-          find evidence -type f -print0 | sort -z | xargs -0 sha256sum > evidence/SHA256SUMS
+          find evidence -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > evidence/SHA256SUMS
           cat evidence/RV1126_F6_SIM_ACCEPTANCE.json
 
       - uses: actions/upload-artifact@v4
