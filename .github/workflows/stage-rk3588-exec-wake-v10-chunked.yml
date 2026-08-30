@@ -122,7 +122,7 @@ jobs:
           test "$(git -C /tmp/qemu-upstream rev-parse HEAD)" = "$QEMU_COMMIT"
           cd /tmp/qemu-upstream
           ./configure --disable-system --disable-user --disable-docs --disable-werror
-          ninja -C build ivshmem-server
+          ninja -C build contrib/ivshmem-server/ivshmem-server
           test -x build/contrib/ivshmem-server/ivshmem-server
           cp build/contrib/ivshmem-server/ivshmem-server "$GITHUB_WORKSPACE/out/ivshmem-server"
           "$GITHUB_WORKSPACE/out/ivshmem-server" -h | tee "$GITHUB_WORKSPACE/out/UPSTREAM_IVSHMEM_HELP.txt"
