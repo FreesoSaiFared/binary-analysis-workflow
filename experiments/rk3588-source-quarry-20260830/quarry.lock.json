@@ -20,8 +20,9 @@
         "hw/misc/ivshmem-pci.c",
         "tests/qtest/ivshmem-test.c"
       ],
-      "role": "direct-replacement-candidate",
-      "status": "candidate"
+      "role": "upstream-protocol-simulator-control",
+      "status": "candidate-control-not-production",
+      "notes": "QEMU contrib ivshmem-server is explicitly example code and warns not to use it in production; use only for protocol equivalence and behavior differential."
     },
     {
       "id": "starpu-dmda",
