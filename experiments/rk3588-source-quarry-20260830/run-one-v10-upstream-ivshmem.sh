@@ -50,6 +50,11 @@ for x in "${p[@]}"; do
 done
 test "$rc" -eq 0
 
+# Stop/wait before reading redirected verbose output so stdio buffers are flushed.
+kill "$srv" 2>/dev/null || true
+wait "$srv" 2>/dev/null || true
+trap - EXIT
+
 # Protocol-level control evidence: exactly four upstream peer admissions.
 test "$(grep -c 'new peer id = ' "$R/server.log")" -eq 4
 grep -q '\*\*\* Example code, do not use in production \*\*\*' "$R/server.log"
