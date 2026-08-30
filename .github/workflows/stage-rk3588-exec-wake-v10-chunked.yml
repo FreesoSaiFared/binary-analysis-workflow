@@ -1,13 +1,14 @@
-name: Prove RK3588 generation-bound execution wake v10 fix1
+name: Quarry Q0 upstream QEMU ivshmem V10 protocol control
 
 on:
   push:
     branches:
-      - rk3588-v10-exec-wake-fix1
+      - rk3588-source-quarry-20260830
     paths:
       - 'experiments/rk3588-exec-wake-v10/source-v10.part-*'
       - 'experiments/rk3588-exec-wake-v10/verify-v10-fix1.py'
       - '.github/workflows/stage-rk3588-exec-wake-v10-chunked.yml'
+      - 'experiments/rk3588-source-quarry-20260830/run-one-v10-upstream-ivshmem.sh'
 
 permissions:
   contents: read
@@ -99,13 +100,44 @@ jobs:
           '
           D=experiments/rk3588-exec-wake-v10
           cp "$D/ivshmem_server.py" out/
-          cp "$D/run-one-v10.sh" out/
+          cp experiments/rk3588-source-quarry-20260830/run-one-v10-upstream-ivshmem.sh out/run-one-v10.sh
           cp "$D/run-v10-matrix.py" out/
           cp "$D/verify-v10.py" out/
           cp "$D/rkmesh_v10.c" out/rkmesh_v10-source.c
           cp "$D/init_v10.c" out/init_v10-source.c
           cp "$D/verify-v10-fix1.py" out/verify-v10-fix1-source.py
           chmod +x out/ivshmem_server.py out/run-one-v10.sh out/run-v10-matrix.py out/verify-v10.py
+
+      - name: Build pinned upstream QEMU ivshmem example server
+        shell: bash
+        run: |
+          set -euo pipefail
+          QEMU_COMMIT=d2e570cc0f97b936902a5b1b86b73c0f5998b475
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ninja-build pkg-config libglib2.0-dev python3-venv
+          rm -rf /tmp/qemu-upstream
+          git clone --filter=blob:none --no-checkout https://github.com/qemu/qemu.git /tmp/qemu-upstream
+          git -C /tmp/qemu-upstream fetch --depth=1 origin "$QEMU_COMMIT"
+          git -C /tmp/qemu-upstream checkout --detach "$QEMU_COMMIT"
+          test "$(git -C /tmp/qemu-upstream rev-parse HEAD)" = "$QEMU_COMMIT"
+          cd /tmp/qemu-upstream
+          ./configure --disable-system --disable-user --disable-docs --disable-werror
+          ninja -C build ivshmem-server
+          test -x build/contrib/ivshmem-server/ivshmem-server
+          cp build/contrib/ivshmem-server/ivshmem-server "$GITHUB_WORKSPACE/out/ivshmem-server"
+          "$GITHUB_WORKSPACE/out/ivshmem-server" -h | tee "$GITHUB_WORKSPACE/out/UPSTREAM_IVSHMEM_HELP.txt"
+          sha256sum "$GITHUB_WORKSPACE/out/ivshmem-server" | tee "$GITHUB_WORKSPACE/out/UPSTREAM_IVSHMEM_SHA256.txt"
+          printf '%s\n' "$QEMU_COMMIT" > "$GITHUB_WORKSPACE/out/UPSTREAM_QEMU_COMMIT.txt"
+
+      - name: Smoke upstream protocol equivalence
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ROOT="$PWD/out/smoke-migrate" ./out/run-one-v10.sh 0
+          RUN_ROOT="$PWD/out/smoke-stay" ./out/run-one-v10.sh 1
+          grep -q 'mode=migrate iterations=7 migrations=1 final_host=1 task_page_bytes=73728 state_transfer_bytes=8192 state_xfers=1 measured_total=81920' out/smoke-migrate/migrate/summary.txt
+          grep -q 'mode=stay iterations=7 migrations=0 final_host=0 task_page_bytes=86016 state_transfer_bytes=0 state_xfers=0 measured_total=86016' out/smoke-stay/stay/summary.txt
+          echo UPSTREAM_IVSHMEM_SMOKE_EQUIVALENCE_PASS
 
       - name: Gate 20 fresh migration boots and full matrix
         shell: bash
@@ -131,6 +163,7 @@ jobs:
           test "$(grep -c '^RKMESH_V10_MIGRATION_WAKE_RELIABILITY_PASS ' out/MIGRATION_WAKE_RELIABILITY.txt)" -eq 20
           ./out/run-v10-matrix.py
           ./out/verify-v10.py | tee out/V10_VERIFY.txt
+          echo UPSTREAM_PROTOCOL_EQUIVALENCE_PROVEN | tee out/Q0_RESULT.txt
           find out/reliability out/results -type f -name iv.bin -delete
           find out/reliability out/results -type s -delete || true
           (cd out && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
@@ -151,6 +184,12 @@ jobs:
             rk3588-exec-wake-v10.tar.gz
             rk3588-exec-wake-v10.tar.gz.sha256
             out/QEMU_VERSION.txt
+            out/UPSTREAM_QEMU_COMMIT.txt
+            out/UPSTREAM_IVSHMEM_HELP.txt
+            out/UPSTREAM_IVSHMEM_SHA256.txt
+            out/Q0_RESULT.txt
+            out/smoke-migrate/**
+            out/smoke-stay/**
             out/KERNEL_VERSION.txt
             out/SHA256SUMS
             out/MIGRATION_WAKE_RELIABILITY.txt
