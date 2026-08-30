@@ -5,14 +5,14 @@ Base: proven V10 `50c77211804f321ca5c92791897a397b4ebbf5ba`
 ## Rule
 Do not mutate or weaken V10 to make a quarry candidate fit. Every candidate first enters as a parallel control. Promotion requires preservation of the existing V10 proof invariants.
 
-## Q0 — Replace only the ivshmem server in a control
+## Q0 — Upstream QEMU ivshmem protocol-equivalence control
 Source authority:
 - QEMU `d2e570cc0f97b936902a5b1b86b73c0f5998b475`
 - `contrib/ivshmem-server/*`
 - `tests/qtest/ivshmem-test.c`
 
 Composition:
-1. build/invoke QEMU's existing `ivshmem-server`; no reimplementation;
+1. build/invoke QEMU's pinned existing `ivshmem-server` example; no reimplementation;
 2. keep the exact V10 kernel module, init, QEMU machine, guest count, BAR size, `ivshmem-doorbell,vectors=1`, and verifier;
 3. run the same migration reliability gate: 20 fresh migrate boots followed by migrate/stay matrix;
 4. compare against frozen V10.
@@ -25,9 +25,10 @@ Acceptance:
 - stay remains 86,016 task-page bytes + 0 state bytes;
 - final generation/checksum remain exact;
 - no new application-level choreography;
-- upstream server handles disconnect notification at least as well as current custom server.
+- upstream control exposes disconnect notification behavior missing from the current custom test server;
+- treat the upstream server as example/control code only: QEMU explicitly marks it non-production and notes incomplete send-failure handling.
 
-If all pass: mark `SOURCE_REPLACEMENT_PROVEN: ivshmem_server.py -> qemu ivshmem-server`.
+If all pass: mark `UPSTREAM_PROTOCOL_EQUIVALENCE_PROVEN` and consider removing the custom server only from the QEMU laboratory lane. Do **not** promote QEMU's example server as production infrastructure.
 If any fail: preserve current server and record the exact protocol mismatch.
 
 ## Q1 — Placement policy mature-code differential
