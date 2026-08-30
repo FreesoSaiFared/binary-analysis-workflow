@@ -21,7 +21,7 @@ Observed V10 application-level abstraction leak:
 
 ## Quarry results
 
-### QEMU ivshmem — DIRECT REPLACEMENT CANDIDATE
+### QEMU ivshmem — UPSTREAM PROTOCOL / SIMULATOR CONTROL CANDIDATE
 Repository: `qemu/qemu`
 Pinned commit: `d2e570cc0f97b936902a5b1b86b73c0f5998b475`
 Source:
@@ -34,10 +34,11 @@ Observed behavior:
 - `ivshmem_io_write()` decodes destination from bits 31:16 and vector from low bits, then signals the destination eventfd.
 - upstream peer teardown advertises the disconnect to the remaining peers.
 - upstream qtests verify distinct VM IDs, vector count and inter-VM MSI-X doorbells.
+- QEMU's own example `main.c` explicitly prints `*** Example code, do not use in production ***` and warns that proper send-failure handling is incomplete.
 Mapping to V10:
 - current 1,598-byte `ivshmem_server.py` reproduces the same core handshake for one vector and four peers.
 - current custom server removes a disconnected peer locally but does not implement the upstream disconnect advertisement to remaining peers.
-Decision: **ADOPT-CANDIDATE**, but only in a new control lane. Do not modify frozen V10 until the complete 20-boot + matrix proof is reproduced using the upstream server.
+Decision: **SIMULATOR-CONTROL CANDIDATE**, not a production-server candidate. Use the upstream example to test protocol equivalence and to identify behavior our test server should not silently omit. Do not modify frozen V10 until the complete 20-boot + matrix proof is reproduced in a parallel control.
 
 ### StarPU DMDA/DMDAS — PLACEMENT / HYSTERESIS ORACLE
 Repository: `starpu-runtime/starpu` (GitHub mirror of Inria development repo)
@@ -149,11 +150,11 @@ Mapping:
 Decision: **CONTROL-ORACLE**.
 
 ## Quarry conclusion
-The highest-value immediate replacement is the custom ivshmem server, because an upstream implementation already exists at exactly that seam. The highest-value V11 source lesson is the opposite: neither Popcorn nor Charm++ is a drop-in component for the existing kernel/QEMU transport. Under strict quarry rules, creating a new adapter that merely imitates them is not justified.
+The highest-value immediate source-composition experiment is to run frozen V10 against QEMU's pinned upstream example server as a protocol-equivalence control. Passing would justify removing some custom *laboratory-server* code from the QEMU proof lane, but it would not make the example server production software. The highest-value V11 source lesson is the opposite: neither Popcorn nor Charm++ is a drop-in component for the existing kernel/QEMU transport. Under strict quarry rules, creating a new adapter that merely imitates them is not justified.
 
 Therefore:
 1. preserve proven V10 unchanged;
-2. create an upstream-QEMU-server V10 control and require exact proof equivalence;
+2. run an upstream-QEMU-server V10 protocol control and require exact proof equivalence;
 3. make StarPU/Argo/Charm/Popcorn/Herd/SimGrid independent oracles;
 4. move the real-hardware boundary onto Linux's existing PCI endpoint test contract;
 5. mark a source-composed V11 runtime implementation **BLOCKED_BY_SOURCE_CONSTRAINT** until a directly reusable bounded-continuation component is located or the constraint is explicitly relaxed.
