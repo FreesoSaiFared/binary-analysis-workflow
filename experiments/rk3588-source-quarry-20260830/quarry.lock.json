@@ -1,0 +1,119 @@
+{
+  "generated_at": "2026-08-30",
+  "project": "rk3588-compute-fabric",
+  "base_proof": {
+    "branch": "rk3588-v10-exec-wake-fix1",
+    "commit": "50c77211804f321ca5c92791897a397b4ebbf5ba",
+    "capsule_sha256": "d0baa9eed1949e83428422a9afb503a5e3db15d938a1a2824a58eb8fbd1462e7",
+    "rkmesh_v10_sha256": "d2569685c5e680e4a94b6befe63dd7c49ae088d3757aee807c962231680fa4d6",
+    "init_v10_sha256": "09ddd3da8c18342a53923687b84cb38713bcb242ddf024d03346e26bff9a5eef",
+    "ivshmem_server_py_sha256": "c7aa2afe1bcbaed5e33dd11aa498553cb47f2417e5fda1f053c68f79bc6a0844"
+  },
+  "sources": [
+    {
+      "id": "qemu-ivshmem",
+      "repo": "qemu/qemu",
+      "commit": "d2e570cc0f97b936902a5b1b86b73c0f5998b475",
+      "paths": [
+        "contrib/ivshmem-server/ivshmem-server.c",
+        "contrib/ivshmem-server/main.c",
+        "hw/misc/ivshmem-pci.c",
+        "tests/qtest/ivshmem-test.c"
+      ],
+      "role": "direct-replacement-candidate",
+      "status": "candidate"
+    },
+    {
+      "id": "starpu-dmda",
+      "repo": "starpu-runtime/starpu",
+      "commit": "c0c6ee6d44bcd4feebfef25b714a190ec18b7907",
+      "paths": [
+        "src/sched_policies/deque_modeling_policy_data_aware.c",
+        "src/datawizard/coherency.c"
+      ],
+      "license": "LGPL-2.1",
+      "role": "placement-oracle",
+      "status": "observed-source"
+    },
+    {
+      "id": "argodsm",
+      "repo": "etascale/argodsm",
+      "commit": "131e36217137b3f180e3640e686ffb144494b00e",
+      "paths": [
+        "src/backend/mpi/coherence.cpp",
+        "src/backend/mpi/swdsm.cpp"
+      ],
+      "license": "Eta Scale Open Source License / repository metadata NOASSERTION",
+      "role": "coherence-oracle",
+      "status": "license-review-before-reuse"
+    },
+    {
+      "id": "charm-migration",
+      "repo": "charmplusplus/charm",
+      "commit": "935d1441d17d81506de8d5964772d97321ab88ad",
+      "paths": [
+        "src/ck-core/ck.C",
+        "src/ck-core/cklocation.C"
+      ],
+      "license": "Apache-2.0",
+      "role": "v11-semantic-oracle",
+      "status": "not-drop-in"
+    },
+    {
+      "id": "popcorn-linux",
+      "repo": "ssrg-vt/popcorn-kernel",
+      "commit": "fa78739980898b048338c0db5d762b2e67035f8b",
+      "paths": [
+        "kernel/popcorn/process_server.c",
+        "kernel/popcorn/page_server.c",
+        "kernel/popcorn/vma_server.c",
+        "kernel/popcorn/wait_station.c"
+      ],
+      "role": "transparent-execution-complexity-oracle",
+      "status": "rejected-too-broad-for-v11"
+    },
+    {
+      "id": "linux-pci-endpoint-test",
+      "repo": "torvalds/linux",
+      "commit": "08dbfad3f5040f5bdb6c529da20d6d4e81fefd72",
+      "paths": [
+        "drivers/pci/endpoint/functions/pci-epf-test.c",
+        "drivers/misc/pci_endpoint_test.c",
+        "Documentation/PCI/endpoint/pci-test-howto.rst"
+      ],
+      "role": "real-hardware-acceptance-oracle",
+      "status": "adopt-contract"
+    },
+    {
+      "id": "linux-ntb-perf",
+      "repo": "torvalds/linux",
+      "commit": "08dbfad3f5040f5bdb6c529da20d6d4e81fefd72",
+      "paths": [
+        "drivers/ntb/test/ntb_perf.c"
+      ],
+      "role": "peer-window-throughput-oracle",
+      "status": "control-oracle"
+    },
+    {
+      "id": "herdtools7",
+      "repo": "herd/herdtools7",
+      "commit": "cadf88b3764279c7c38b115df725da4177d87c32",
+      "paths": [
+        "herd/libdir/aarch64"
+      ],
+      "role": "arm64-memory-order-oracle",
+      "status": "adopt-proof-lane"
+    },
+    {
+      "id": "simgrid",
+      "repo": "simgrid/simgrid",
+      "commit": "12a63c78cdaa56b78836c95c6a18484f367dca38",
+      "role": "timing-topology-oracle",
+      "status": "control-oracle"
+    }
+  ],
+  "strict_source_constraint": {
+    "v11_runtime_implementation": "BLOCKED_BY_SOURCE_CONSTRAINT",
+    "reason": "Charm++ matches bounded migratable-object semantics but is not a drop-in for V10 transport; Popcorn Linux is broader transparent process/thread machinery. No directly reusable bounded-continuation component has yet been proven to fit without custom adapter logic."
+  }
+}
